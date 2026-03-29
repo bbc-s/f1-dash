@@ -1,0 +1,82 @@
+﻿name: f1-dash
+services:
+  api:
+    environment:
+      ADDRESS: 0.0.0.0:80
+      ORIGIN: http://127.0.0.1:3000;http://localhost:3000
+      RUST_LOG: api=info
+    image: ghcr.io/slowlydev/f1-dash-api:latest
+    networks:
+      f1dash: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 80
+        published: "4010"
+        protocol: tcp
+    restart: unless-stopped
+  portainer:
+    command:
+      - -H
+      - unix:///var/run/docker.sock
+    image: portainer/portainer-ce:2.27.2
+    networks:
+      f1dash: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 9000
+        published: "9000"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind: {}
+      - type: volume
+        source: portainer_data
+        target: /data
+        volume: {}
+  realtime:
+    environment:
+      ADDRESS: 0.0.0.0:80
+      ORIGIN: http://127.0.0.1:3000;http://localhost:3000
+      RUST_LOG: realtime=info
+    image: ghcr.io/slowlydev/f1-dash-realtime:latest
+    networks:
+      f1dash: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 80
+        published: "4000"
+        protocol: tcp
+    restart: unless-stopped
+  web:
+    depends_on:
+      api:
+        condition: service_started
+        required: true
+      realtime:
+        condition: service_started
+        required: true
+    environment:
+      API_URL: http://api:80
+      NEXT_PUBLIC_LIVE_URL: http://127.0.0.1:4000
+    image: ghcr.io/slowlydev/f1-dash:latest
+    networks:
+      f1dash: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 3000
+        published: "3000"
+        protocol: tcp
+    restart: unless-stopped
+networks:
+  f1dash:
+    name: f1-dash_f1dash
+volumes:
+  portainer_data:
+    name: f1-dash_portainer_data

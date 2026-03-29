@@ -1,10 +1,17 @@
+"use client";
+
 import { WeatherMap } from "@/app/dashboard/weather/map";
+import WeatherInfo from "@/components/WeatherInfo";
 
 export default function WeatherPage() {
-	// calc height is a workaround, maybe think about refactoring sometime
 	return (
-		<div className="relative h-[calc(100%-142px)] w-full md:h-full">
-			<WeatherMap />
+		<div className="flex h-full w-full flex-col gap-3">
+			<div className="rounded-lg border border-zinc-800 p-3">
+				<WeatherInfo />
+			</div>
+			<div className="relative min-h-[420px] flex-1">
+				<WeatherMap />
+			</div>
 		</div>
 	);
 }

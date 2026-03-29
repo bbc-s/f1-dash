@@ -16,59 +16,55 @@ export type WidgetId = (typeof widgetIds)[number];
 export type WidgetConfig = {
 	visible: boolean;
 	zoom: number;
+	x: number;
+	y: number;
 	width: number;
 	height: number;
 };
 
 type WidgetLayoutState = {
+	hydrated: boolean;
+	layoutLocked: boolean;
 	order: WidgetId[];
 	config: Record<WidgetId, WidgetConfig>;
 
-	moveWidget: (dragged: WidgetId, target: WidgetId) => void;
+	setHydrated: (hydrated: boolean) => void;
+	setLayoutLocked: (locked: boolean) => void;
 	setVisible: (id: WidgetId, visible: boolean) => void;
 	setZoom: (id: WidgetId, zoom: number) => void;
 	setSize: (id: WidgetId, width: number, height: number) => void;
+	setPosition: (id: WidgetId, x: number, y: number) => void;
 	resetLayout: () => void;
 };
 
-const defaultConfig: Record<WidgetId, WidgetConfig> = {
-	leaderboard: { visible: true, zoom: 1, width: 900, height: 540 },
-	map: { visible: true, zoom: 1, width: 720, height: 540 },
-	telemetry: { visible: true, zoom: 1, width: 720, height: 300 },
-	"race-control": { visible: true, zoom: 1, width: 420, height: 420 },
-	"team-radios": { visible: true, zoom: 1, width: 420, height: 420 },
-	"track-violations": { visible: true, zoom: 1, width: 420, height: 420 },
-	tyres: { visible: true, zoom: 1, width: 720, height: 300 },
-};
+const defaultConfigFactory = (): Record<WidgetId, WidgetConfig> => ({
+	leaderboard: { visible: true, zoom: 1, x: 8, y: 8, width: 980, height: 520 },
+	map: { visible: true, zoom: 1, x: 1000, y: 8, width: 780, height: 520 },
+	telemetry: { visible: true, zoom: 1, x: 8, y: 540, width: 780, height: 300 },
+	"race-control": { visible: true, zoom: 1, x: 800, y: 540, width: 320, height: 300 },
+	"team-radios": { visible: true, zoom: 1, x: 1130, y: 540, width: 320, height: 300 },
+	"track-violations": { visible: true, zoom: 1, x: 1460, y: 540, width: 320, height: 300 },
+	tyres: { visible: true, zoom: 1, x: 8, y: 850, width: 1770, height: 280 },
+});
 
-const defaultOrder: WidgetId[] = [...widgetIds];
+const defaultOrderFactory = (): WidgetId[] => [...widgetIds];
 
 export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 	persist(
 		(set) => ({
-			order: defaultOrder,
-			config: defaultConfig,
+			hydrated: false,
+			layoutLocked: true,
+			order: defaultOrderFactory(),
+			config: defaultConfigFactory(),
 
-			moveWidget: (dragged, target) =>
-				set((state) => {
-					const order = [...state.order];
-					const draggedIndex = order.indexOf(dragged);
-					const targetIndex = order.indexOf(target);
-					if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return state;
-
-					order.splice(draggedIndex, 1);
-					order.splice(targetIndex, 0, dragged);
-					return { ...state, order };
-				}),
+			setHydrated: (hydrated) => set({ hydrated }),
+			setLayoutLocked: (layoutLocked) => set({ layoutLocked }),
 
 			setVisible: (id, visible) =>
 				set((state) => ({
 					config: {
 						...state.config,
-						[id]: {
-							...state.config[id],
-							visible,
-						},
+						[id]: { ...state.config[id], visible },
 					},
 				})),
 
@@ -76,10 +72,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 				set((state) => ({
 					config: {
 						...state.config,
-						[id]: {
-							...state.config[id],
-							zoom: Math.max(0.7, Math.min(1.8, zoom)),
-						},
+						[id]: { ...state.config[id], zoom: Math.max(0.7, Math.min(1.8, zoom)) },
 					},
 				})),
 
@@ -95,14 +88,30 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					},
 				})),
 
+			setPosition: (id, x, y) =>
+				set((state) => ({
+					config: {
+						...state.config,
+						[id]: {
+							...state.config[id],
+							x: Math.max(0, Math.round(x)),
+							y: Math.max(0, Math.round(y)),
+						},
+					},
+				})),
+
 			resetLayout: () => ({
-				order: defaultOrder,
-				config: defaultConfig,
+				order: defaultOrderFactory(),
+				config: defaultConfigFactory(),
+				layoutLocked: true,
 			}),
 		}),
 		{
-			name: "widget-layout-storage-v1",
+			name: "widget-layout-storage-v2",
 			storage: createJSONStorage(() => localStorage),
+			onRehydrateStorage: () => (state) => {
+				state?.setHydrated(true);
+			},
 		},
 	),
 );

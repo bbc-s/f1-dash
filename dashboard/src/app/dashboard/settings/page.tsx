@@ -37,38 +37,6 @@ export default function SettingsPage() {
 				<p className="text-zinc-500">Show Driver Table Header</p>
 			</div>
 
-			<h2 className="my-4 text-2xl">Leaderboard Columns</h2>
-			<div className="flex flex-col gap-2">
-				{settings.leaderboardColumns.map((column) => (
-					<div key={column.id} className="flex flex-wrap items-center gap-2 rounded border border-zinc-800 p-2">
-						<Toggle
-							enabled={column.visible}
-							setEnabled={(visible) => settings.setLeaderboardColumnVisible(column.id, visible)}
-						/>
-						<p className="w-32 text-zinc-300">{column.label}</p>
-						<input
-							className="w-24 rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-							value={column.width}
-							onChange={(e) => settings.setLeaderboardColumnWidth(column.id, e.target.value)}
-						/>
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={() => settings.moveLeaderboardColumn(column.id, "left")}
-							type="button"
-						>
-							←
-						</button>
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={() => settings.moveLeaderboardColumn(column.id, "right")}
-							type="button"
-						>
-							→
-						</button>
-					</div>
-				))}
-			</div>
-
 			<div className="flex gap-2">
 				<Toggle enabled={settings.showBestSectors} setEnabled={(v) => settings.setShowBestSectors(v)} />
 				<p className="text-zinc-500">Show Drivers Best Sectors</p>

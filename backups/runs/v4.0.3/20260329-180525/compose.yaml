@@ -1,0 +1,58 @@
+name: f1-dash
+
+services:
+  api:
+    image: ghcr.io/slowlydev/f1-dash-api:${F1_DASH_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${API_PORT:-4010}:80
+    environment:
+      - RUST_LOG=api=${RUST_LOG_LEVEL:-info}
+      - ADDRESS=0.0.0.0:80
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+    networks:
+      - f1dash
+
+  realtime:
+    image: ghcr.io/slowlydev/f1-dash-realtime:${F1_DASH_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${REALTIME_PORT:-4000}:80
+    environment:
+      - RUST_LOG=realtime=${RUST_LOG_LEVEL:-info}
+      - ADDRESS=0.0.0.0:80
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+    networks:
+      - f1dash
+
+  web:
+    image: ghcr.io/slowlydev/f1-dash:${F1_DASH_IMAGE_TAG:-latest}
+    depends_on:
+      - realtime
+      - api
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${WEB_PORT:-3000}:3000
+    environment:
+      - NEXT_PUBLIC_LIVE_URL=http://127.0.0.1:${REALTIME_PORT:-4000}
+      - API_URL=http://api:80
+    networks:
+      - f1dash
+
+  portainer:
+    image: portainer/portainer-ce:${PORTAINER_TAG:-2.27.2}
+    command: -H unix:///var/run/docker.sock
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${PORTAINER_PORT:-9000}:9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - f1dash
+
+volumes:
+  portainer_data:
+
+networks:
+  f1dash:

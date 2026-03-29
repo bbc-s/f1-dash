@@ -20,10 +20,6 @@ const liveTimingItems = [
 		name: "Dashboard",
 	},
 	{
-		href: "/dashboard/track-map",
-		name: "Track Map",
-	},
-	{
 		href: "/dashboard/standings",
 		name: "Standings",
 	},
@@ -140,7 +136,7 @@ export default function Sidebar({ connected }: Props) {
 					<div className="flex flex-col gap-1">
 						<Item item={{ href: "/dashboard/settings", name: "Settings" }} />
 
-						<Item target="_blank" item={{ href: "/schedule", name: "Schedule" }} />
+						<Item item={{ href: "/schedule", name: "Schedule" }} />
 						<Item target="_blank" item={{ href: "/help", name: "Help" }} />
 						<Item target="_blank" item={{ href: "/", name: "Home" }} />
 					</div>

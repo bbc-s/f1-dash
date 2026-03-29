@@ -12,6 +12,7 @@ type SyncMessage = {
 	payload: {
 		order: ReturnType<typeof useWidgetLayoutStore.getState>["order"];
 		config: ReturnType<typeof useWidgetLayoutStore.getState>["config"];
+		layoutLocked: boolean;
 	};
 };
 
@@ -26,12 +27,14 @@ export function useWidgetLayoutSync() {
 
 		const unsub = useWidgetLayoutStore.subscribe((state) => {
 			if (applyingRemoteRef.current) return;
+			if (!state.hydrated) return;
 			channelRef.current?.postMessage({
 				type: "layout-sync",
 				sourceId,
 				payload: {
 					order: state.order,
 					config: state.config,
+					layoutLocked: state.layoutLocked,
 				},
 			} satisfies SyncMessage);
 		});
@@ -40,11 +43,13 @@ export function useWidgetLayoutSync() {
 			const message = event.data;
 			if (message.type !== "layout-sync") return;
 			if (message.sourceId === sourceId) return;
+			if (!useWidgetLayoutStore.getState().hydrated) return;
 
 			applyingRemoteRef.current = true;
 			useWidgetLayoutStore.setState({
 				order: message.payload.order,
 				config: message.payload.config,
+				layoutLocked: message.payload.layoutLocked,
 			});
 			applyingRemoteRef.current = false;
 		};
