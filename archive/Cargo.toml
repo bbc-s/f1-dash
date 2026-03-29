@@ -1,0 +1,22 @@
+[package]
+name = "archive"
+version = "0.1.0"
+edition = "2024"
+publish = false
+authors = ["bbc-s"]
+
+[dependencies]
+shared = { workspace = true }
+anyhow = "1.0.98"
+axum = { version = "0.8.4", features = ["http2"] }
+base64 = "0.22.1"
+chrono = { version = "0.4", features = ["serde"] }
+flate2 = "1.1.2"
+futures = "0.3.31"
+reqwest = { version = "0.12.28", features = ["json"] }
+reqwest-eventsource = "0.6.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.45.1", features = ["full"] }
+tower-http = { version = "0.6.4", features = ["cors"] }
+tracing = "0.1.41"

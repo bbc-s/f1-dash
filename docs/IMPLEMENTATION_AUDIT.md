@@ -70,3 +70,30 @@
   - Primary upstream feed remains single in backend.
   - Browser-side now prefers one SSE tab leader + inter-window sync.
   - Reduces duplicated SSE traffic and event decoding across multiple windows.
+
+## Replay/Archive implementation
+
+- Added `archive` service in workspace and source-build compose profile.
+- Live ingest source: `realtime /api/realtime` SSE.
+- Storage format: append-only NDJSON event log (`events.ndjson`) per recording.
+- Configurable via env:
+  - `ARCHIVE_STORAGE_PATH`
+  - `ARCHIVE_RETENTION_DAYS`
+  - `SOURCE_REALTIME_URL`
+- Archive endpoints:
+  - `POST /api/archive/start`
+  - `POST /api/archive/stop`
+  - `GET /api/archive/status`
+  - `GET /api/archive/recordings`
+- Replay endpoints:
+  - `POST /api/replay/load`
+  - `POST /api/replay/play`
+  - `POST /api/replay/pause`
+  - `POST /api/replay/seek`
+  - `POST /api/replay/speed`
+  - `GET /api/replay/state`
+  - `GET /api/replay/frame`
+- Dashboard replay mode:
+  - mode switch `live/replay` in top bar.
+  - play/pause/seek/speed/load controls in top bar.
+  - leader-election + `BroadcastChannel` so one primary replay poller updates all open windows.

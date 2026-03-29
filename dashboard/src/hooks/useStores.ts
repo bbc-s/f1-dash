@@ -4,8 +4,8 @@ import { useDataStore } from "@/stores/useDataStore";
 
 type Fns = {
 	updateState: (state: State) => void;
-	updatePosition: (pos: Positions) => void;
-	updateCarData: (car: CarsData) => void;
+	updatePosition: (pos: Positions | null) => void;
+	updateCarData: (car: CarsData | null) => void;
 };
 
 export const useStores = (): Fns => {

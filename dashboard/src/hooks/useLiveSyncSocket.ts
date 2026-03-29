@@ -5,6 +5,7 @@ import type { MessageInitial, MessageUpdate } from "@/types/message.type";
 import { env } from "@/env";
 
 type Props = {
+	enabled?: boolean;
 	handleInitial: (data: MessageInitial) => void;
 	handleUpdate: (data: MessageUpdate) => void;
 };
@@ -47,7 +48,7 @@ function isLeaderStale(lease: LeaderLease | null) {
 	return now() - lease.ts > LEASE_TIMEOUT_MS;
 }
 
-export const useLiveSyncSocket = ({ handleInitial, handleUpdate }: Props) => {
+export const useLiveSyncSocket = ({ enabled = true, handleInitial, handleUpdate }: Props) => {
 	const tabId = useMemo(() => crypto.randomUUID(), []);
 	const [connected, setConnected] = useState(false);
 	const handlersRef = useRef({ handleInitial, handleUpdate });
@@ -63,6 +64,10 @@ export const useLiveSyncSocket = ({ handleInitial, handleUpdate }: Props) => {
 	}, [handleInitial, handleUpdate]);
 
 	useEffect(() => {
+		if (!enabled) {
+			return;
+		}
+
 		if (typeof BroadcastChannel !== "undefined") {
 			channelRef.current = new BroadcastChannel(CHANNEL_NAME);
 		}
@@ -215,7 +220,7 @@ export const useLiveSyncSocket = ({ handleInitial, handleUpdate }: Props) => {
 				localStorage.removeItem(LEADER_KEY);
 			}
 		};
-	}, [tabId]);
+	}, [enabled, tabId]);
 
 	return { connected };
 };

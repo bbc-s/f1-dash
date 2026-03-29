@@ -9,6 +9,7 @@ A short tutorial on how to run f1-dash locally with Docker Desktop, Docker Compo
 - `ops/start-local.ps1`: starts Docker (if needed), creates a backup, runs the stack.
 - `ops/backup-state.ps1`: creates timestamped backups in `backups/runs/vX.Y.Z/...`.
 - `ops/bump-version.ps1`: increments semantic patch version in `VERSION` and `dashboard/package.json`.
+- `archive` service (source-build profile): live archive + replay clock API.
 
 ## Install prerequisites (Windows)
 
@@ -38,6 +39,9 @@ Run local-only from your fork source code (build local images):
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
 ```
+
+When running source-build, replay/archive API is available at:
+- Archive/Replay API: `http://127.0.0.1:4020`
 
 Access:
 - Dashboard: `http://127.0.0.1:3000`
@@ -81,6 +85,12 @@ If started in LAN mode:
 
 ```powershell
 docker compose --env-file compose.env -f compose.yaml -f compose.lan.yaml down
+```
+
+If started with source-build:
+
+```powershell
+docker compose --env-file compose.env -f compose.yaml -f compose.local-build.yaml down
 ```
 
 ## Troubleshooting

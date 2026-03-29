@@ -16,12 +16,13 @@ import { useStatefulBuffer } from "@/hooks/useStatefulBuffer";
 const UPDATE_MS = 200;
 
 type Props = {
+	enabled?: boolean;
 	updateState: (state: State) => void;
 	updatePosition: (pos: Positions) => void;
 	updateCarData: (car: CarsData) => void;
 };
 
-export const useDataEngine = ({ updateState, updatePosition, updateCarData }: Props) => {
+export const useDataEngine = ({ enabled = true, updateState, updatePosition, updateCarData }: Props) => {
 	const buffers = {
 		ExtrapolatedClock: useStatefulBuffer(),
 		TopThree: useStatefulBuffer(),
@@ -54,6 +55,9 @@ export const useDataEngine = ({ updateState, updatePosition, updateCarData }: Pr
 	);
 
 	const intervalRef = useRef<NodeJS.Timeout | null>(null);
+	const enabledRef = useRef(enabled);
+
+	enabledRef.current = enabled;
 
 	const handleInitial = ({ CarDataZ: carZ, PositionZ: posZ, ...initial }: MessageInitial) => {
 		updateState(initial);
@@ -106,6 +110,10 @@ export const useDataEngine = ({ updateState, updatePosition, updateCarData }: Pr
 	};
 
 	const handleCurrentState = () => {
+		if (!enabledRef.current) {
+			return;
+		}
+
 		const delay = delayRef.current;
 
 		if (delay === 0) {

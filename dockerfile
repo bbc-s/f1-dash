@@ -12,6 +12,7 @@ COPY realtime realtime
 COPY shared shared
 COPY signalr signalr
 COPY api api
+COPY archive archive
 COPY simulator simulator
 
 FROM builder-base AS builder
@@ -26,3 +27,8 @@ CMD [ "/api" ]
 FROM alpine:3 AS realtime
 COPY --from=builder /usr/src/app/target/release/realtime .
 CMD [ "/realtime" ]
+
+
+FROM alpine:3 AS archive
+COPY --from=builder /usr/src/app/target/release/archive .
+CMD [ "/archive" ]

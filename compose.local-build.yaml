@@ -13,8 +13,33 @@ services:
       target: realtime
     image: f1-dash-local-realtime:4.0.4
 
+  archive:
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: archive
+    image: f1-dash-local-archive:4.0.4
+    ports:
+      - 127.0.0.1:${ARCHIVE_PORT:-4020}:80
+    environment:
+      - RUST_LOG=archive=${RUST_LOG_LEVEL:-info}
+      - ADDRESS=0.0.0.0:80
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+      - SOURCE_REALTIME_URL=http://realtime:80
+      - ARCHIVE_STORAGE_PATH=/data/archive
+      - ARCHIVE_RETENTION_DAYS=${ARCHIVE_RETENTION_DAYS:-14}
+    volumes:
+      - archive_data:/data/archive
+    depends_on:
+      - realtime
+
   web:
     build:
       context: ./dashboard
       dockerfile: dockerfile
     image: f1-dash-local-web:4.0.4
+    environment:
+      - NEXT_PUBLIC_REPLAY_URL=http://127.0.0.1:${ARCHIVE_PORT:-4020}
+
+volumes:
+  archive_data:
