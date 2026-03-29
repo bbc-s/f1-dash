@@ -6,7 +6,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useDataEngine } from '@/hooks/useDataEngine';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useStores } from '@/hooks/useStores';
-import { useSocket } from '@/hooks/useSocket';
+import { useLiveSyncSocket } from '@/hooks/useLiveSyncSocket';
+import { useWidgetLayoutSync } from '@/hooks/useWidgetLayoutSync';
 
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useSidebarStore } from '@/stores/useSidebarStore';
@@ -28,7 +29,8 @@ type Props = {
 export default function DashboardLayout({ children }: Props) {
 	const stores = useStores();
 	const { handleInitial, handleUpdate, maxDelay } = useDataEngine(stores);
-	const { connected } = useSocket({ handleInitial, handleUpdate });
+	const { connected } = useLiveSyncSocket({ handleInitial, handleUpdate });
+	useWidgetLayoutSync();
 
 	const delay = useSettingsStore((state) => state.delay);
 	const syncing = delay > maxDelay;

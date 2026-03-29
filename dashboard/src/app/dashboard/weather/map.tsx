@@ -112,6 +112,10 @@ export function WeatherMap() {
 				</div>
 			)}
 
+			<div className="absolute top-2 right-2 z-20 rounded bg-black/70 px-2 py-1 text-xs text-zinc-300">
+				Radar/map source: RainViewer
+			</div>
+
 			{loading && <div className="h-full w-full animate-pulse rounded-lg bg-zinc-800" />}
 		</div>
 	);

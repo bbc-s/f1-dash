@@ -21,12 +21,6 @@ powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 
 The stack stays private to your machine by default (`127.0.0.1` bindings).
 
-Run from local fork source code (build local images):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
-```
-
 Full guide: [SETUP.md](SETUP.md)
 
 ## Contributing

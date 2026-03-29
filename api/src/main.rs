@@ -16,6 +16,7 @@ use shared::tracing_subscriber;
 mod endpoints {
     pub(crate) mod health;
     pub(crate) mod schedule;
+    pub(crate) mod standings;
 }
 
 #[tokio::main]
@@ -27,6 +28,7 @@ async fn main() -> Result<(), Error> {
     let app = Router::new()
         .route("/api/schedule", get(endpoints::schedule::get))
         .route("/api/schedule/next", get(endpoints::schedule::get_next))
+        .route("/api/standings", get(endpoints::standings::get))
         .route("/api/health", get(endpoints::health::check));
 
     info!(addr, "starting api http server");

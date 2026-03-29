@@ -1,5 +1,6 @@
 import { persist, createJSONStorage, subscribeWithSelector } from "zustand/middleware";
 import { create } from "zustand";
+import { leaderboardColumnsDefault, type LeaderboardColumn, type LeaderboardColumnId } from "@/types/leaderboard.type";
 
 type SpeedUnit = "metric" | "imperial";
 
@@ -43,6 +44,12 @@ type SettingsStore = {
 
 	delayIsPaused: boolean;
 	setDelayIsPaused: (delayIsPaused: boolean) => void;
+
+	leaderboardColumns: LeaderboardColumn[];
+	setLeaderboardColumns: (columns: LeaderboardColumn[]) => void;
+	setLeaderboardColumnVisible: (id: LeaderboardColumnId, visible: boolean) => void;
+	setLeaderboardColumnWidth: (id: LeaderboardColumnId, width: string) => void;
+	moveLeaderboardColumn: (id: LeaderboardColumnId, direction: "left" | "right") => void;
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -89,6 +96,28 @@ export const useSettingsStore = create<SettingsStore>()(
 
 				delayIsPaused: true,
 				setDelayIsPaused: (delayIsPaused: boolean) => set({ delayIsPaused }),
+
+				leaderboardColumns: leaderboardColumnsDefault,
+				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) => set({ leaderboardColumns }),
+				setLeaderboardColumnVisible: (id: LeaderboardColumnId, visible: boolean) =>
+					set((state) => ({
+						leaderboardColumns: state.leaderboardColumns.map((col) => (col.id === id ? { ...col, visible } : col)),
+					})),
+				setLeaderboardColumnWidth: (id: LeaderboardColumnId, width: string) =>
+					set((state) => ({
+						leaderboardColumns: state.leaderboardColumns.map((col) => (col.id === id ? { ...col, width } : col)),
+					})),
+				moveLeaderboardColumn: (id: LeaderboardColumnId, direction: "left" | "right") =>
+					set((state) => {
+						const cols = [...state.leaderboardColumns];
+						const index = cols.findIndex((c) => c.id === id);
+						if (index === -1) return state;
+						const target = direction === "left" ? index - 1 : index + 1;
+						if (target < 0 || target >= cols.length) return state;
+						const [item] = cols.splice(index, 1);
+						cols.splice(target, 0, item);
+						return { leaderboardColumns: cols };
+					}),
 			}),
 			{
 				name: "settings-storage",

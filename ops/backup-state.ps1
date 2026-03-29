@@ -19,6 +19,7 @@ New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
 $filesToCopy = @(
     "compose.yaml",
     "compose.lan.yaml",
+    "compose.local-build.yaml",
     "compose.env.example",
     "VERSION",
     "SETUP.md",

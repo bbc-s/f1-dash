@@ -33,12 +33,6 @@ Optional: edit `compose.env` and set ports, image tag, or LAN IP.
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1
 ```
 
-Run local-only from your fork source code (build local images):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
-```
-
 Access:
 - Dashboard: `http://127.0.0.1:3000`
 - Realtime API: `http://127.0.0.1:4000`
@@ -51,12 +45,6 @@ Set `LAN_BIND_IP` in `compose.env` to your PC's LAN IP (example `192.168.1.50`) 
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -LanMode
-```
-
-LAN mode from source build:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -LanMode -BuildFromSource
 ```
 
 This keeps access within your local network segment only. Do not forward router ports.

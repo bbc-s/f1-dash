@@ -9,7 +9,7 @@ services:
     environment:
       - RUST_LOG=api=${RUST_LOG_LEVEL:-info}
       - ADDRESS=0.0.0.0:80
-      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000}
     networks:
       - f1dash
 
@@ -21,7 +21,7 @@ services:
     environment:
       - RUST_LOG=realtime=${RUST_LOG_LEVEL:-info}
       - ADDRESS=0.0.0.0:80
-      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000}
     networks:
       - f1dash
 
@@ -35,7 +35,7 @@ services:
       - 127.0.0.1:${WEB_PORT:-3000}:3000
     environment:
       - NEXT_PUBLIC_LIVE_URL=http://127.0.0.1:${REALTIME_PORT:-4000}
-      - API_URL=http://api:80
+      - API_URL=http://127.0.0.1:${API_PORT:-4010}
     networks:
       - f1dash
 

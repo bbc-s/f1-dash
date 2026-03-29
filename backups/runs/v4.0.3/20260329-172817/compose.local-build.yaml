@@ -1,0 +1,20 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: api
+    image: f1-dash-local-api:4.0.3
+
+  realtime:
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: realtime
+    image: f1-dash-local-realtime:4.0.3
+
+  web:
+    build:
+      context: ./dashboard
+      dockerfile: dockerfile
+    image: f1-dash-local-web:4.0.3

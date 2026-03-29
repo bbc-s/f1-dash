@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { motion } from "motion/react";
 
 import type { Driver, TimingDataDriver } from "@/types/state.type";
+import type { LeaderboardColumn } from "@/types/leaderboard.type";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useDataStore } from "@/stores/useDataStore";
@@ -15,12 +16,13 @@ import DriverTire from "./DriverTire";
 import DriverMiniSectors from "./DriverMiniSectors";
 import DriverLapTime from "./DriverLapTime";
 import DriverInfo from "./DriverInfo";
-import DriverCarMetrics from "./DriverCarMetrics";
 
 type Props = {
 	position: number;
 	driver: Driver;
 	timingDriver: TimingDataDriver;
+	template: string;
+	columns: LeaderboardColumn[];
 };
 
 const hasDRS = (drs: number) => drs > 9;
@@ -39,15 +41,13 @@ const inDangerZone = (position: number, sessionPart: number) => {
 	}
 };
 
-export default function Driver({ driver, timingDriver, position }: Props) {
+export default function Driver({ driver, timingDriver, position, template, columns }: Props) {
 	const sessionPart = useDataStore((state) => state.state?.TimingData?.SessionPart);
 	const timingStatsDriver = useDataStore((state) => state.state?.TimingStats?.Lines[driver.RacingNumber]);
 	const appTimingDriver = useDataStore((state) => state.state?.TimingAppData?.Lines[driver.RacingNumber]);
 	const carData = useDataStore((state) => (state?.carsData ? state.carsData[driver.RacingNumber].Channels : undefined));
 
 	const hasFastest = timingStatsDriver?.PersonalBestLapTime.Position == 1;
-
-	const carMetrics = useSettingsStore((state) => state.carMetrics);
 
 	const favoriteDriver = useSettingsStore((state) => state.favoriteDrivers.includes(driver.RacingNumber));
 
@@ -64,25 +64,59 @@ export default function Driver({ driver, timingDriver, position }: Props) {
 			<div
 				className="grid items-center gap-2"
 				style={{
-					gridTemplateColumns: carMetrics
-						? "5.5rem 3.5rem 5.5rem 4rem 5rem 5.5rem auto 10.5rem"
-						: "5.5rem 3.5rem 5.5rem 4rem 5rem 5.5rem auto",
+					gridTemplateColumns: template,
 				}}
 			>
-				<DriverTag className="min-w-full!" short={driver.Tla} teamColor={driver.TeamColour} position={position} />
-				<DriverDRS
-					on={carData ? hasDRS(carData[45]) : false}
-					possible={carData ? possibleDRS(carData[45]) : false}
-					inPit={timingDriver.InPit}
-					pitOut={timingDriver.PitOut}
-				/>
-				<DriverTire stints={appTimingDriver?.Stints} />
-				<DriverInfo timingDriver={timingDriver} gridPos={appTimingDriver ? parseInt(appTimingDriver.GridPos) : 0} />
-				<DriverGap timingDriver={timingDriver} sessionPart={sessionPart} />
-				<DriverLapTime last={timingDriver.LastLapTime} best={timingDriver.BestLapTime} hasFastest={hasFastest} />
-				<DriverMiniSectors sectors={timingDriver.Sectors} bestSectors={timingStatsDriver?.BestSectors} />
-
-				{carMetrics && carData && <DriverCarMetrics carData={carData} />}
+				{columns.map((column) => {
+					switch (column.id) {
+						case "position":
+							return (
+								<DriverTag
+									key={column.id}
+									className="min-w-full!"
+									short={driver.Tla}
+									teamColor={driver.TeamColour}
+									position={position}
+								/>
+							);
+						case "drs":
+							return (
+								<DriverDRS
+									key={column.id}
+									on={carData ? hasDRS(carData[45]) : false}
+									possible={carData ? possibleDRS(carData[45]) : false}
+									inPit={timingDriver.InPit}
+									pitOut={timingDriver.PitOut}
+								/>
+							);
+						case "tire":
+							return <DriverTire key={column.id} stints={appTimingDriver?.Stints} />;
+						case "info":
+							return (
+								<DriverInfo
+									key={column.id}
+									timingDriver={timingDriver}
+									gridPos={appTimingDriver ? parseInt(appTimingDriver.GridPos) : 0}
+								/>
+							);
+						case "gap":
+							return <DriverGap key={column.id} timingDriver={timingDriver} sessionPart={sessionPart} />;
+						case "laptime":
+							return (
+								<DriverLapTime key={column.id} last={timingDriver.LastLapTime} best={timingDriver.BestLapTime} hasFastest={hasFastest} />
+							);
+						case "sectors":
+							return <DriverMiniSectors key={column.id} sectors={timingDriver.Sectors} bestSectors={timingStatsDriver?.BestSectors} />;
+						case "speed":
+							return <p key={column.id} className="font-mono">{carData ? `${carData[2]} km/h` : "-"}</p>;
+						case "gear":
+							return <p key={column.id} className="font-mono text-xl">{carData ? carData[3] : "-"}</p>;
+						case "throttle":
+							return <p key={column.id} className="font-mono">{carData ? `${carData[4]}%` : "-"}</p>;
+						case "brake":
+							return <p key={column.id} className="font-mono">{carData ? (carData[5] === 1 ? "ON" : "OFF") : "-"}</p>;
+					}
+				})}
 			</div>
 		</motion.div>
 	);

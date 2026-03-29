@@ -1,5 +1,6 @@
 ﻿param(
-    [switch]$LanMode
+    [switch]$LanMode,
+    [switch]$BuildFromSource
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,10 +41,18 @@ if (-not $engineReady) {
 
 powershell -ExecutionPolicy Bypass -File ".\ops\backup-state.ps1"
 
-if ($LanMode) {
-    docker compose --env-file compose.env -f compose.yaml -f compose.lan.yaml up -d --pull always
+if ($BuildFromSource) {
+    if ($LanMode) {
+        docker compose --env-file compose.env -f compose.yaml -f compose.local-build.yaml -f compose.lan.yaml up -d --build
+    } else {
+        docker compose --env-file compose.env -f compose.yaml -f compose.local-build.yaml up -d --build
+    }
 } else {
-    docker compose --env-file compose.env -f compose.yaml up -d --pull always
+    if ($LanMode) {
+        docker compose --env-file compose.env -f compose.yaml -f compose.lan.yaml up -d --pull always
+    } else {
+        docker compose --env-file compose.env -f compose.yaml up -d --pull always
+    }
 }
 
 docker compose --env-file compose.env ps

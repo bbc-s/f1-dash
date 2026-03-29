@@ -16,3 +16,4 @@ services:
       - ${LAN_BIND_IP}:${WEB_PORT:-3000}:3000
     environment:
       - NEXT_PUBLIC_LIVE_URL=http://${LAN_BIND_IP}:${REALTIME_PORT:-4000}
+      - API_URL=http://${LAN_BIND_IP}:${API_PORT:-4010}
