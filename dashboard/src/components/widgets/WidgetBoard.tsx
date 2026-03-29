@@ -8,14 +8,24 @@ import { widgetRegistry } from "@/widgets/registry";
 
 export default function WidgetBoard() {
 	const hydrated = useWidgetLayoutStore((state) => state.hydrated);
+	const order = useWidgetLayoutStore((state) => state.order);
 	const config = useWidgetLayoutStore((state) => state.config);
 	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
 	const setVisible = useWidgetLayoutStore((state) => state.setVisible);
+	const arrangeToGrid = useWidgetLayoutStore((state) => state.arrangeToGrid);
 	const resetLayout = useWidgetLayoutStore((state) => state.resetLayout);
 
-	const hiddenWidgets = useMemo(() => widgetIds.filter((id) => !config[id].visible), [config]);
-	const visibleWidgets = useMemo(() => widgetIds.filter((id) => config[id].visible), [config]);
+	const safeOrder = useMemo(() => {
+		const ordered = order.filter((id) => widgetIds.includes(id));
+		for (const id of widgetIds) {
+			if (!ordered.includes(id)) ordered.push(id);
+		}
+		return ordered;
+	}, [order]);
+
+	const hiddenWidgets = useMemo(() => safeOrder.filter((id) => !config[id].visible), [safeOrder, config]);
+	const visibleWidgets = useMemo(() => safeOrder.filter((id) => config[id].visible), [safeOrder, config]);
 
 	const boardHeight = useMemo(() => {
 		const maxY = visibleWidgets.reduce((max, id) => Math.max(max, config[id].y + config[id].height), 0);
@@ -34,18 +44,20 @@ export default function WidgetBoard() {
 
 					<div className="flex items-center gap-2">
 						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
+							className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-amber-500 text-amber-300" : "border-emerald-500 text-emerald-300"}`}
 							onClick={() => setLayoutLocked(!layoutLocked)}
 							type="button"
 						>
 							{layoutLocked ? "Unlock layout" : "Lock layout"}
 						</button>
 						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs disabled:opacity-50"
-							onClick={resetLayout}
-							disabled={layoutLocked}
+							className="rounded border border-zinc-700 px-2 py-1 text-xs"
+							onClick={arrangeToGrid}
 							type="button"
 						>
+							Arrange to grid
+						</button>
+						<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={resetLayout} type="button">
 							Reset layout
 						</button>
 					</div>
@@ -68,7 +80,7 @@ export default function WidgetBoard() {
 			</div>
 
 			<div className="relative w-full overflow-auto rounded-lg border border-zinc-800 bg-zinc-950" style={{ height: "75vh" }}>
-				<div className="relative min-w-[1850px]" style={{ height: `${boardHeight}px` }}>
+				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px` }}>
 					{visibleWidgets.map((id) => {
 						const Widget = widgetRegistry[id].component;
 						return (

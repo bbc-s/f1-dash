@@ -28,8 +28,9 @@ services:
       - SOURCE_REALTIME_URL=http://realtime:80
       - ARCHIVE_STORAGE_PATH=/data/archive
       - ARCHIVE_RETENTION_DAYS=${ARCHIVE_RETENTION_DAYS:-14}
+      - ARCHIVE_AUTO_RECORD=${ARCHIVE_AUTO_RECORD:-true}
     volumes:
-      - archive_data:/data/archive
+      - ${ARCHIVE_STORAGE_PATH_HOST:-./data/archive}:/data/archive
     depends_on:
       - realtime
 
@@ -40,6 +41,3 @@ services:
     image: f1-dash-local-web:4.0.4
     environment:
       - NEXT_PUBLIC_REPLAY_URL=http://127.0.0.1:${ARCHIVE_PORT:-4020}
-
-volumes:
-  archive_data:

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useDataEngine } from "@/hooks/useDataEngine";
@@ -168,22 +168,48 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 
 	const [loadId, setLoadId] = useState("");
 	const [recordings, setRecordings] = useState<string[]>([]);
+	const [archiveRecording, setArchiveRecording] = useState(false);
+	const [archiveStorage, setArchiveStorage] = useState("");
 
 	const seconds = useMemo(() => Math.floor(cursorMs / 1000), [cursorMs]);
 	const totalSeconds = useMemo(() => Math.floor(durationMs / 1000), [durationMs]);
+
+	useEffect(() => {
+		let mounted = true;
+		const loadStatus = async () => {
+			const status = (await controls.status()) as
+				| { recording?: boolean; storagePath?: string; recordingId?: string | null }
+				| null;
+			if (!mounted || !status) return;
+			setArchiveRecording(Boolean(status.recording));
+			setArchiveStorage(status.storagePath ?? "");
+		};
+		void loadStatus();
+		const timer = window.setInterval(() => {
+			void loadStatus();
+		}, 5000);
+		return () => {
+			mounted = false;
+			window.clearInterval(timer);
+		};
+	}, [controls]);
+
+	const actionButton = "rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 hover:border-cyan-500 hover:bg-zinc-800";
+	const actionPrimary = "rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30";
+	const actionDanger = "rounded border border-red-500 bg-red-600/15 px-2 py-1 text-xs text-red-200 hover:bg-red-600/25";
 
 	return (
 		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
 			<div className="flex items-center gap-1">
 				<button
-					className={`rounded border px-2 py-1 text-xs ${mode === "live" ? "border-cyan-400" : "border-zinc-700"}`}
+					className={mode === "live" ? actionPrimary : actionButton}
 					onClick={() => setMode("live")}
 					type="button"
 				>
 					Live
 				</button>
 				<button
-					className={`rounded border px-2 py-1 text-xs ${mode === "replay" ? "border-cyan-400" : "border-zinc-700"}`}
+					className={mode === "replay" ? actionPrimary : actionButton}
 					onClick={() => setMode("replay")}
 					type="button"
 				>
@@ -191,34 +217,46 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				</button>
 			</div>
 
+			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
+				Recorder: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
+				{archiveStorage ? ` | ${archiveStorage}` : ""}
+			</div>
+
+			<div className="flex items-center gap-1">
+				<button
+					className={actionPrimary}
+					onClick={async () => {
+						await controls.startRecording();
+						setArchiveRecording(true);
+					}}
+					type="button"
+				>
+					Start rec
+				</button>
+				<button
+					className={actionDanger}
+					onClick={async () => {
+						await controls.stopRecording();
+						setArchiveRecording(false);
+					}}
+					type="button"
+				>
+					Stop rec
+				</button>
+				<button
+					className={actionButton}
+					onClick={async () => {
+						const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+						setRecordings(res?.recordings ?? []);
+					}}
+					type="button"
+				>
+					Refresh
+				</button>
+			</div>
+
 			{mode === "replay" && (
 				<>
-					<div className="flex items-center gap-1">
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={() => controls.startRecording()}
-							type="button"
-						>
-							Start rec
-						</button>
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={() => controls.stopRecording()}
-							type="button"
-						>
-							Stop rec
-						</button>
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={async () => {
-								const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
-								setRecordings(res?.recordings ?? []);
-							}}
-							type="button"
-						>
-							Refresh list
-						</button>
-					</div>
 					<select
 						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
 						value={loadId}
@@ -239,33 +277,39 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 							onChange={(e) => setLoadId(e.target.value)}
 						/>
 						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
+							className={actionPrimary}
 							onClick={() => {
 								const target = loadId || recordingId || "";
 								if (!target) return;
-								controls.load(target);
+								void controls.load(target);
 							}}
 							type="button"
 						>
 							Load
 						</button>
 					</div>
-					<button
-						className="rounded border border-zinc-700 px-2 py-1 text-xs"
-						onClick={() => (playing ? controls.pause() : controls.play())}
-						type="button"
-					>
-						{playing ? "Pause" : "Play"}
-					</button>
+					<div className="flex items-center gap-1">
+						<button className={actionPrimary} onClick={() => void controls.play()} type="button">
+							Play
+						</button>
+						<button className={actionButton} onClick={() => void controls.pause()} type="button">
+							Pause
+						</button>
+						<span className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300">
+							{playing ? "Playing" : "Paused"}
+						</span>
+					</div>
 					<select
 						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
 						value={String(speed)}
-						onChange={(e) => controls.speed(Number(e.target.value))}
+						onChange={(e) => void controls.speed(Number(e.target.value))}
 					>
+						<option value="0.25">0.25x</option>
 						<option value="0.5">0.5x</option>
 						<option value="1">1x</option>
 						<option value="2">2x</option>
 						<option value="4">4x</option>
+						<option value="8">8x</option>
 					</select>
 					<input
 						type="range"
@@ -273,7 +317,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						min={0}
 						max={Math.max(durationMs, 1)}
 						value={Math.min(cursorMs, Math.max(durationMs, 1))}
-						onChange={(e) => controls.seek(Number(e.target.value))}
+						onChange={(e) => void controls.seek(Number(e.target.value))}
 					/>
 					<span className="text-xs text-zinc-400">
 						{seconds}s / {totalSeconds}s

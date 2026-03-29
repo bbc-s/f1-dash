@@ -24,3 +24,8 @@ export type StandingsResponse = {
 	constructors: ConstructorStanding[];
 	source: string;
 };
+
+export type ScheduleRoundLite = {
+	name: string;
+	start: string;
+};

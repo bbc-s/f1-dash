@@ -30,5 +30,8 @@ CMD [ "/realtime" ]
 
 
 FROM alpine:3 AS archive
+RUN apk add --no-cache wget
 COPY --from=builder /usr/src/app/target/release/archive .
-CMD [ "/archive" ]
+COPY archive/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD [ "/entrypoint.sh" ]

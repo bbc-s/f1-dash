@@ -1,4 +1,4 @@
-﻿# Setup
+# Setup
 
 A short tutorial on how to run f1-dash locally with Docker Desktop, Docker Compose and Portainer.
 
@@ -40,8 +40,7 @@ Run local-only from your fork source code (build local images):
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
 ```
 
-When running source-build, replay/archive API is available at:
-- Archive/Replay API: `http://127.0.0.1:4020`
+When running source-build, replay/archive API is available at:`r`n- Archive/Replay API: `http://127.0.0.1:4020``r`n- Auto-record starts automatically on container start (`ARCHIVE_AUTO_RECORD=true`).`r`n- Host storage path is configurable with `ARCHIVE_STORAGE_PATH_HOST` in `compose.env`.
 
 Access:
 - Dashboard: `http://127.0.0.1:3000`
@@ -96,3 +95,4 @@ docker compose --env-file compose.env -f compose.yaml -f compose.local-build.yam
 ## Troubleshooting
 
 If Docker CLI is installed but engine is unavailable, open Docker Desktop and wait for `Running`. On fresh systems, a reboot may be required after Docker Desktop install.
+

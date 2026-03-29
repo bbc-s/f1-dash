@@ -1,69 +1,41 @@
 import { AnimatePresence, LayoutGroup } from "motion/react";
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useDataStore } from "@/stores/useDataStore";
 
 import { sortPos } from "@/lib/sorting";
+import type { LeaderboardColumn, LeaderboardColumnId } from "@/types/leaderboard.type";
 
 import Driver from "@/components/driver/Driver";
+
+const MIN_COL_WIDTH = 56;
+
+function widthToPx(width: string): number {
+	const trimmed = width.trim();
+	if (trimmed.endsWith("px")) return Math.max(MIN_COL_WIDTH, Number.parseInt(trimmed, 10) || MIN_COL_WIDTH);
+	if (trimmed.endsWith("rem")) return Math.max(MIN_COL_WIDTH, Math.round((Number.parseFloat(trimmed) || 0) * 16));
+	if (trimmed === "auto") return 180;
+	const raw = Number.parseInt(trimmed, 10);
+	return Math.max(MIN_COL_WIDTH, Number.isFinite(raw) ? raw : 180);
+}
+
+function pxToWidth(px: number): string {
+	return `${Math.max(MIN_COL_WIDTH, Math.round(px))}px`;
+}
 
 export default function LeaderBoard() {
 	const drivers = useDataStore(({ state }) => state?.DriverList);
 	const driversTiming = useDataStore(({ state }) => state?.TimingData);
-	const settings = useSettingsStore();
-	const [showColumns, setShowColumns] = useState(false);
-
-	const showTableHeader = settings.tableHeaders;
-	const leaderboardColumns = settings.leaderboardColumns;
-	const visibleColumns = leaderboardColumns.filter((col) => col.visible);
+	const showTableHeader = useSettingsStore((state) => state.tableHeaders);
+	const columns = useSettingsStore((state) => state.leaderboardColumns);
+	const visibleColumns = columns.filter((col) => col.visible);
 	const template = visibleColumns.map((col) => col.width).join(" ");
 
 	return (
 		<div className="flex w-fit flex-col gap-0.5">
-			<div className="mb-1 flex items-center justify-between rounded border border-zinc-800 p-1">
-				<p className="text-xs text-zinc-400">Leaderboard Columns</p>
-				<button className="rounded border border-zinc-700 px-2 py-0.5 text-xs" onClick={() => setShowColumns((v) => !v)}>
-					{showColumns ? "hide controls" : "show controls"}
-				</button>
-			</div>
-
-			{showColumns && (
-				<div className="mb-2 grid gap-1 rounded border border-zinc-800 p-2 text-xs">
-					{leaderboardColumns.map((column) => (
-						<div key={column.id} className="flex items-center gap-2">
-							<input
-								type="checkbox"
-								checked={column.visible}
-								onChange={(e) => settings.setLeaderboardColumnVisible(column.id, e.target.checked)}
-							/>
-							<span className="w-24">{column.label}</span>
-							<input
-								className="w-20 rounded border border-zinc-700 bg-zinc-900 p-1"
-								value={column.width}
-								onChange={(e) => settings.setLeaderboardColumnWidth(column.id, e.target.value)}
-							/>
-							<button
-								className="rounded border border-zinc-700 px-1"
-								onClick={() => settings.moveLeaderboardColumn(column.id, "left")}
-								type="button"
-							>
-								←
-							</button>
-							<button
-								className="rounded border border-zinc-700 px-1"
-								onClick={() => settings.moveLeaderboardColumn(column.id, "right")}
-								type="button"
-							>
-								→
-							</button>
-						</div>
-					))}
-				</div>
-			)}
-
-			{showTableHeader && <TableHeaders template={template} />}
+			{showTableHeader && <TableHeaders template={template} columns={visibleColumns} />}
 
 			{(!drivers || !driversTiming) &&
 				new Array(20).fill("").map((_, index) => <SkeletonDriver key={`driver.loading.${index}`} />)}
@@ -90,22 +62,115 @@ export default function LeaderBoard() {
 	);
 }
 
-const TableHeaders = ({ template }: { template: string }) => {
-	const columns = useSettingsStore((state) => state.leaderboardColumns).filter((col) => col.visible);
+function TableHeaders({ template, columns }: { template: string; columns: LeaderboardColumn[] }) {
+	const allColumns = useSettingsStore((state) => state.leaderboardColumns);
+	const setLeaderboardColumnVisible = useSettingsStore((state) => state.setLeaderboardColumnVisible);
+	const setLeaderboardColumnWidth = useSettingsStore((state) => state.setLeaderboardColumnWidth);
+	const moveLeaderboardColumn = useSettingsStore((state) => state.moveLeaderboardColumn);
+	const [menuOpen, setMenuOpen] = useState(false);
+
+	const resizingRef = useRef<{
+		id: LeaderboardColumnId;
+		startX: number;
+		startWidthPx: number;
+	} | null>(null);
+
+	useEffect(() => {
+		const onMove = (event: MouseEvent) => {
+			if (!resizingRef.current) return;
+			event.preventDefault();
+			const delta = event.clientX - resizingRef.current.startX;
+			const next = resizingRef.current.startWidthPx + delta;
+			setLeaderboardColumnWidth(resizingRef.current.id, pxToWidth(next));
+		};
+		const onUp = () => {
+			resizingRef.current = null;
+		};
+		window.addEventListener("mousemove", onMove);
+		window.addEventListener("mouseup", onUp);
+		return () => {
+			window.removeEventListener("mousemove", onMove);
+			window.removeEventListener("mouseup", onUp);
+		};
+	}, [setLeaderboardColumnWidth]);
 
 	return (
-		<div
-			className="grid items-center gap-2 p-1 px-2 text-sm font-medium text-zinc-500"
-			style={{
-				gridTemplateColumns: template,
-			}}
-		>
-			{columns.map((column) => (
-				<p key={column.id}>{column.label}</p>
-			))}
+		<div className="mb-1 rounded border border-zinc-800 p-1">
+			<div className="mb-1 flex items-center justify-between px-1">
+				<p className="text-[11px] text-zinc-400">Columns</p>
+				<button
+					className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 hover:border-cyan-500"
+					onClick={() => setMenuOpen((v) => !v)}
+					type="button"
+				>
+					{menuOpen ? "Hide list" : "Column list"}
+				</button>
+			</div>
+			{menuOpen && (
+				<div className="mb-2 grid gap-1 rounded border border-zinc-800 bg-zinc-900/50 p-2 text-xs">
+					{allColumns.map((column) => (
+						<label key={column.id} className="flex items-center gap-2">
+							<input
+								type="checkbox"
+								checked={column.visible}
+								onChange={(e) => setLeaderboardColumnVisible(column.id, e.target.checked)}
+							/>
+							<span>{column.label}</span>
+						</label>
+					))}
+				</div>
+			)}
+
+			<div
+				className="grid items-center gap-2 px-1 py-1 text-sm font-medium text-zinc-300"
+				style={{
+					gridTemplateColumns: template,
+				}}
+			>
+				{columns.map((column) => (
+					<div key={column.id} className="group relative flex items-center rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1">
+						<div className="truncate text-xs">{column.label}</div>
+						<div className="ml-auto hidden items-center gap-1 text-[10px] group-hover:flex">
+							<button
+								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+								onClick={() => moveLeaderboardColumn(column.id, "left")}
+								type="button"
+							>
+								L
+							</button>
+							<button
+								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+								onClick={() => moveLeaderboardColumn(column.id, "right")}
+								type="button"
+							>
+								R
+							</button>
+							<button
+								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+								onClick={() => setLeaderboardColumnVisible(column.id, false)}
+								type="button"
+							>
+								Hide
+							</button>
+						</div>
+						<div
+							className="absolute top-0 right-0 h-full w-2 cursor-col-resize"
+							onMouseDown={(event) => {
+								event.preventDefault();
+								event.stopPropagation();
+								resizingRef.current = {
+									id: column.id,
+									startX: event.clientX,
+									startWidthPx: widthToPx(column.width),
+								};
+							}}
+						/>
+					</div>
+				))}
+			</div>
 		</div>
 	);
-};
+}
 
 const SkeletonDriver = () => {
 	const template = useSettingsStore((state) =>

@@ -1,10 +1,10 @@
-import WidgetPopoutClient from "@/app/dashboard/widget/[id]/WidgetPopoutClient";
+import { redirect } from "next/navigation";
 
 type Props = {
 	params: Promise<{ id: string }>;
 };
 
-export default async function WidgetPopoutPage({ params }: Props) {
+export default async function LegacyWidgetPopoutPage({ params }: Props) {
 	const { id } = await params;
-	return <WidgetPopoutClient id={id} />;
+	redirect(`/widget/${id}`);
 }

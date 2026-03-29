@@ -1,6 +1,6 @@
 import StandingsClient from "@/app/dashboard/standings/StandingsClient";
 import { env } from "@/env";
-import type { StandingsResponse } from "@/types/standings.type";
+import type { ScheduleRoundLite, StandingsResponse } from "@/types/standings.type";
 
 async function getStandings(): Promise<StandingsResponse | null> {
 	try {
@@ -14,8 +14,21 @@ async function getStandings(): Promise<StandingsResponse | null> {
 	}
 }
 
+async function getSchedule(): Promise<ScheduleRoundLite[]> {
+	try {
+		const response = await fetch(`${env.API_URL}/api/schedule`, {
+			cache: "no-store",
+		});
+		if (!response.ok) return [];
+		const rounds = (await response.json()) as Array<{ name: string; start: string }>;
+		return rounds.map((round) => ({ name: round.name, start: round.start }));
+	} catch {
+		return [];
+	}
+}
+
 export default async function StandingsPage() {
-	const data = await getStandings();
+	const [data, rounds] = await Promise.all([getStandings(), getSchedule()]);
 
 	if (!data) {
 		return (
@@ -26,5 +39,5 @@ export default async function StandingsPage() {
 		);
 	}
 
-	return <StandingsClient data={data} />;
+	return <StandingsClient data={data} rounds={rounds} />;
 }

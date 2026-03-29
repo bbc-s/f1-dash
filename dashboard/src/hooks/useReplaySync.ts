@@ -49,12 +49,14 @@ function writeLease(lease: Lease) {
 }
 
 async function postReplay(path: string, body?: unknown) {
-	if (!env.NEXT_PUBLIC_REPLAY_URL) return;
-	await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}${path}`, {
+	if (!env.NEXT_PUBLIC_REPLAY_URL) return null;
+	const response = await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}${path}`, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: body ? JSON.stringify(body) : "{}",
 	});
+	if (!response.ok) return null;
+	return response.json().catch(() => null);
 }
 
 async function getReplay(path: string) {
@@ -221,6 +223,7 @@ export function useReplaySync(updateFns: {
 			}),
 		stopRecording: () => postReplay("/api/archive/stop"),
 		listRecordings: () => getReplay("/api/archive/recordings"),
+		status: () => getReplay("/api/archive/status"),
 	};
 
 	return controls;

@@ -1,122 +1,53 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-import maplibregl, { Map, Marker } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useMemo, useState } from "react";
 
 import { fetchCoords } from "@/lib/geocode";
-import { getRainviewer } from "@/lib/rainviewer";
-
 import { useDataStore } from "@/stores/useDataStore";
-
-import PlayControls from "@/components/ui/PlayControls";
-
-import Timeline from "./map-timeline";
 
 export function WeatherMap() {
 	const meeting = useDataStore((state) => state.state?.SessionInfo?.Meeting);
-
-	const [loading, setLoading] = useState<boolean>(true);
-
-	const mapContainerRef = useRef<HTMLDivElement>(null);
-	const mapRef = useRef<Map>(null);
-
-	const [playing, setPlaying] = useState<boolean>(false);
-
-	const [frames, setFrames] = useState<{ id: number; time: number }[]>([]);
-	const currentFrameRef = useRef<number>(0);
-
-	const handleMapLoad = async () => {
-		if (!mapRef.current) return;
-
-		const rainviewer = await getRainviewer();
-		if (!rainviewer) return;
-
-		const pathFrames = [...rainviewer.radar.past, ...rainviewer.radar.nowcast];
-
-		for (let i = 0; i < pathFrames.length; i++) {
-			const frame = pathFrames[i];
-
-			mapRef.current.addLayer({
-				id: `rainviewer-frame-${i}`,
-				type: "raster",
-				source: {
-					type: "raster",
-					tiles: [`${rainviewer.host}/${frame.path}/256/{z}/{x}/{y}/8/1_0.webp`],
-					tileSize: 256,
-				},
-				paint: {
-					"raster-opacity": 0,
-					"raster-fade-duration": 200,
-					"raster-resampling": "nearest",
-				},
-			});
-		}
-
-		setFrames(pathFrames.map((frame, i) => ({ time: frame.time, id: i })));
-	};
+	const [coords, setCoords] = useState<{ lat: string; lon: string } | null>(null);
 
 	useEffect(() => {
-		(async () => {
-			if (!mapContainerRef.current) return;
-
+		let cancelled = false;
+		const resolve = async () => {
 			if (!meeting) return;
-
-			const [coordsC, coordsA] = await Promise.all([
-				fetchCoords(`${meeting.Country.Name}, ${meeting.Location} circuit`),
-				fetchCoords(`${meeting.Country.Name}, ${meeting.Location} autodrome`),
-			]);
-
-			const coords = coordsC || coordsA;
-
-			const libMap = new maplibregl.Map({
-				container: mapContainerRef.current,
-				style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-				center: coords ? [coords.lon, coords.lat] : undefined,
-				zoom: 10,
-				canvasContextAttributes: {
-					antialias: true,
-				},
-			});
-
-			libMap.on("load", async () => {
-				setLoading(false);
-
-				if (coords) {
-					new Marker().setLngLat([coords.lon, coords.lat]).addTo(libMap);
-				}
-
-				await handleMapLoad();
-			});
-
-			mapRef.current = libMap;
-		})();
+			const country = meeting.Country?.Name ?? "";
+			const location = meeting.Location ?? "";
+			const candidate = `${country}, ${location} circuit`;
+			const alt = `${country}, ${location} autodrome`;
+			const found = (await fetchCoords(candidate)) ?? (await fetchCoords(alt));
+			if (!cancelled && found) {
+				setCoords({ lat: String(found.lat), lon: String(found.lon) });
+			}
+		};
+		void resolve();
+		return () => {
+			cancelled = true;
+		};
 	}, [meeting]);
 
-	const setFrame = (idx: number) => {
-		mapRef.current?.setPaintProperty(`rainviewer-frame-${currentFrameRef.current}`, "raster-opacity", 0);
-		mapRef.current?.setPaintProperty(`rainviewer-frame-${idx}`, "raster-opacity", 0.8);
-		currentFrameRef.current = idx;
-	};
+	const lat = coords?.lat ?? "51.5074";
+	const lon = coords?.lon ?? "-0.1278";
+
+	const windyUrl = useMemo(() => {
+		const zoom = 7;
+		return `https://embed.windy.com/embed2.html?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${zoom}&level=surface&overlay=rain&menu=&message=&marker=true&calendar=now`;
+	}, [lat, lon]);
 
 	return (
 		<div className="relative h-full w-full">
-			<div ref={mapContainerRef} className="absolute h-full w-full" />
+			<iframe
+				title="Windy Radar"
+				src={windyUrl}
+				className="absolute inset-0 h-full w-full rounded-lg border border-zinc-800"
+				loading="lazy"
+			/>
 
-			{!loading && frames.length > 0 && (
-				<div className="absolute right-0 bottom-0 left-0 z-20 m-2 flex gap-4 rounded-lg bg-black/80 p-4 backdrop-blur-xs md:right-auto md:w-lg">
-					<PlayControls playing={playing} onClick={() => setPlaying((v) => !v)} />
-
-					<Timeline frames={frames} setFrame={setFrame} playing={playing} />
-				</div>
-			)}
-
-			<div className="absolute top-2 right-2 z-20 rounded bg-black/70 px-2 py-1 text-xs text-zinc-300">
-				Radar/map source: RainViewer
+			<div className="absolute top-2 left-2 z-20 rounded bg-black/70 px-2 py-1 text-xs text-zinc-300">
+				Numerical weather: F1 live feed | Radar/map: Windy.com
 			</div>
-
-			{loading && <div className="h-full w-full animate-pulse rounded-lg bg-zinc-800" />}
 		</div>
 	);
 }
