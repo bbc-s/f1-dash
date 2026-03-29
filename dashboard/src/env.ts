@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 const server = z.object({
 	NODE_ENV: z.enum(["development", "test", "production"]),
@@ -14,6 +14,8 @@ const server = z.object({
 const client = z.object({
 	NEXT_PUBLIC_LIVE_URL: z.string().min(1).includes("http"),
 	NEXT_PUBLIC_REPLAY_URL: z.string().includes("http").optional(),
+	NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST: z.string().optional(),
+	NEXT_PUBLIC_ARCHIVE_AUTO_RECORD: z.string().optional(),
 });
 
 const processEnv = {
@@ -28,6 +30,8 @@ const processEnv = {
 
 	NEXT_PUBLIC_LIVE_URL: process.env.NEXT_PUBLIC_LIVE_URL,
 	NEXT_PUBLIC_REPLAY_URL: process.env.NEXT_PUBLIC_REPLAY_URL,
+	NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST: process.env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST,
+	NEXT_PUBLIC_ARCHIVE_AUTO_RECORD: process.env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD,
 };
 
 // Don't touch the part below
@@ -83,3 +87,4 @@ if (process.env.SKIP_ENV_VALIDATION !== "1") {
 }
 
 export { env };
+

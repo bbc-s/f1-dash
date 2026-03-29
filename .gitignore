@@ -10,3 +10,4 @@ compose.env
 
 # data
 *.data.*
+data/

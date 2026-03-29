@@ -1,4 +1,4 @@
-export type State = {
+﻿export type State = {
 	Heartbeat?: Heartbeat;
 	ExtrapolatedClock?: ExtrapolatedClock;
 	TopThree?: TopThree;
@@ -344,6 +344,7 @@ export type CarsData = {
 };
 
 export type CarDataChannels = {
+	[key: string]: number;
 	/** 0 - RPM */
 	"0": number;
 	/** 2 - Speed number km/h */
@@ -357,3 +358,4 @@ export type CarDataChannels = {
 	/** 45 - DRS */
 	"45": number;
 };
+

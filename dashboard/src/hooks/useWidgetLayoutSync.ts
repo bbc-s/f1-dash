@@ -4,15 +4,17 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 
-const CHANNEL = "f1dash-widget-layout-v1";
+const CHANNEL = "f1dash-widget-layout-v2";
 
 type SyncMessage = {
 	type: "layout-sync";
 	sourceId: string;
 	payload: {
+		revision: number;
 		order: ReturnType<typeof useWidgetLayoutStore.getState>["order"];
 		config: ReturnType<typeof useWidgetLayoutStore.getState>["config"];
 		layoutLocked: boolean;
+		snapToGrid: boolean;
 	};
 };
 
@@ -25,16 +27,19 @@ export function useWidgetLayoutSync() {
 		if (typeof BroadcastChannel === "undefined") return;
 		channelRef.current = new BroadcastChannel(CHANNEL);
 
-		const unsub = useWidgetLayoutStore.subscribe((state) => {
+		const unsub = useWidgetLayoutStore.subscribe((state, prev) => {
 			if (applyingRemoteRef.current) return;
-			if (!state.hydrated) return;
+			if (!state.hydrated || state.revision === 0) return;
+			if (state.revision === prev.revision) return;
 			channelRef.current?.postMessage({
 				type: "layout-sync",
 				sourceId,
 				payload: {
+					revision: state.revision,
 					order: state.order,
 					config: state.config,
 					layoutLocked: state.layoutLocked,
+					snapToGrid: state.snapToGrid,
 				},
 			} satisfies SyncMessage);
 		});
@@ -43,13 +48,17 @@ export function useWidgetLayoutSync() {
 			const message = event.data;
 			if (message.type !== "layout-sync") return;
 			if (message.sourceId === sourceId) return;
-			if (!useWidgetLayoutStore.getState().hydrated) return;
+			const local = useWidgetLayoutStore.getState();
+			if (!local.hydrated) return;
+			if (message.payload.revision <= local.revision) return;
 
 			applyingRemoteRef.current = true;
 			useWidgetLayoutStore.setState({
+				revision: message.payload.revision,
 				order: message.payload.order,
 				config: message.payload.config,
 				layoutLocked: message.payload.layoutLocked,
+				snapToGrid: message.payload.snapToGrid,
 			});
 			applyingRemoteRef.current = false;
 		};

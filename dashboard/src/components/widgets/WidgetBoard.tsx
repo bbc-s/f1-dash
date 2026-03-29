@@ -11,7 +11,9 @@ export default function WidgetBoard() {
 	const order = useWidgetLayoutStore((state) => state.order);
 	const config = useWidgetLayoutStore((state) => state.config);
 	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
+	const snapToGrid = useWidgetLayoutStore((state) => state.snapToGrid);
 	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
+	const setSnapToGrid = useWidgetLayoutStore((state) => state.setSnapToGrid);
 	const setVisible = useWidgetLayoutStore((state) => state.setVisible);
 	const arrangeToGrid = useWidgetLayoutStore((state) => state.arrangeToGrid);
 	const resetLayout = useWidgetLayoutStore((state) => state.resetLayout);
@@ -50,16 +52,27 @@ export default function WidgetBoard() {
 						>
 							{layoutLocked ? "Unlock layout" : "Lock layout"}
 						</button>
-						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs"
-							onClick={arrangeToGrid}
-							type="button"
-						>
-							Arrange to grid
-						</button>
-						<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={resetLayout} type="button">
-							Reset layout
-						</button>
+						{!layoutLocked && (
+							<>
+								<button
+									className={`rounded border px-2 py-1 text-xs ${snapToGrid ? "border-cyan-500 text-cyan-300" : "border-zinc-700 text-zinc-300"}`}
+									onClick={() => setSnapToGrid(!snapToGrid)}
+									type="button"
+								>
+									Snap to grid: {snapToGrid ? "On" : "Off"}
+								</button>
+								<button
+									className="rounded border border-zinc-700 px-2 py-1 text-xs"
+									onClick={arrangeToGrid}
+									type="button"
+								>
+									Arrange to grid
+								</button>
+								<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={resetLayout} type="button">
+									Reset layout
+								</button>
+							</>
+						)}
 					</div>
 				</div>
 
@@ -80,7 +93,7 @@ export default function WidgetBoard() {
 			</div>
 
 			<div className="relative w-full overflow-auto rounded-lg border border-zinc-800 bg-zinc-950" style={{ height: "75vh" }}>
-				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px` }}>
+				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px` }} data-widget-board-canvas="true">
 					{visibleWidgets.map((id) => {
 						const Widget = widgetRegistry[id].component;
 						return (

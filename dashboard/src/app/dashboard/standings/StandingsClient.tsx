@@ -10,14 +10,12 @@ import type {
 } from "@/types/standings.type";
 
 type RaceDeltas = Record<string, Record<string, number>>;
-
 type StoredState = {
 	driverRaceDeltas: RaceDeltas;
 	constructorRaceDeltas: RaceDeltas;
-	raceNames: string[];
 };
 
-const STORAGE_KEY = "standings-calculator-v2";
+const STORAGE_KEY = "standings-calculator-v3";
 
 function safeNumber(value: string): number {
 	const parsed = Number(value);
@@ -48,19 +46,6 @@ function rankConstructors(constructors: ConstructorStanding[], raceDeltas: RaceD
 		.sort((a, b) => b.simulatedPoints - a.simulatedPoints || b.wins - a.wins);
 }
 
-function mergeRounds(rounds: ScheduleRoundLite[]) {
-	const seen = new Set<string>();
-	const list: string[] = [];
-	for (const round of rounds) {
-		const name = round.name.trim();
-		if (!name || seen.has(name)) continue;
-		seen.add(name);
-		list.push(name);
-	}
-	if (list.length === 0) list.push("Custom round 1");
-	return list;
-}
-
 function setRaceDelta(raceDeltas: RaceDeltas, entityId: string, race: string, value: number): RaceDeltas {
 	return {
 		...raceDeltas,
@@ -71,35 +56,38 @@ function setRaceDelta(raceDeltas: RaceDeltas, entityId: string, race: string, va
 	};
 }
 
-function loadInitial(rounds: ScheduleRoundLite[]): StoredState {
-	const fallback: StoredState = {
-		driverRaceDeltas: {},
-		constructorRaceDeltas: {},
-		raceNames: mergeRounds(rounds),
-	};
-	if (typeof window === "undefined") return fallback;
+function loadInitial(): StoredState {
+	if (typeof window === "undefined") return { driverRaceDeltas: {}, constructorRaceDeltas: {} };
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return fallback;
+		if (!raw) return { driverRaceDeltas: {}, constructorRaceDeltas: {} };
 		const parsed = JSON.parse(raw) as Partial<StoredState>;
 		return {
-			driverRaceDeltas: parsed.driverRaceDeltas ?? fallback.driverRaceDeltas,
-			constructorRaceDeltas: parsed.constructorRaceDeltas ?? fallback.constructorRaceDeltas,
-			raceNames: parsed.raceNames && parsed.raceNames.length > 0 ? parsed.raceNames : fallback.raceNames,
+			driverRaceDeltas: parsed.driverRaceDeltas ?? {},
+			constructorRaceDeltas: parsed.constructorRaceDeltas ?? {},
 		};
 	} catch {
-		return fallback;
+		return { driverRaceDeltas: {}, constructorRaceDeltas: {} };
 	}
 }
 
+function clearRaceDeltasForRace(source: RaceDeltas, race: string): RaceDeltas {
+	const next: RaceDeltas = {};
+	for (const [entityId, deltas] of Object.entries(source)) {
+		const clone = { ...deltas };
+		delete clone[race];
+		next[entityId] = clone;
+	}
+	return next;
+}
+
 export default function StandingsClient({ data, rounds }: { data: StandingsResponse; rounds: ScheduleRoundLite[] }) {
-	const initial = loadInitial(rounds);
+	const raceNames = useMemo(() => rounds.map((r) => r.name).filter(Boolean), [rounds]);
+	const [selectedRace, setSelectedRace] = useState<string>(() => raceNames[0] ?? "Round 1");
+	const initial = loadInitial();
 
 	const [driverRaceDeltas, setDriverRaceDeltas] = useState<RaceDeltas>(initial.driverRaceDeltas);
 	const [constructorRaceDeltas, setConstructorRaceDeltas] = useState<RaceDeltas>(initial.constructorRaceDeltas);
-	const [raceNames, setRaceNames] = useState<string[]>(initial.raceNames);
-	const [selectedRace, setSelectedRace] = useState<string>(initial.raceNames[0]);
-	const [customRaceName, setCustomRaceName] = useState("");
 
 	useEffect(() => {
 		localStorage.setItem(
@@ -107,10 +95,14 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 			JSON.stringify({
 				driverRaceDeltas,
 				constructorRaceDeltas,
-				raceNames,
 			}),
 		);
-	}, [driverRaceDeltas, constructorRaceDeltas, raceNames]);
+	}, [driverRaceDeltas, constructorRaceDeltas]);
+
+	const activeRace = useMemo(() => {
+		if (raceNames.length === 0) return selectedRace;
+		return raceNames.includes(selectedRace) ? selectedRace : (raceNames[0] ?? "Round 1");
+	}, [raceNames, selectedRace]);
 
 	const simulatedDrivers = useMemo(() => rankDrivers(data.drivers, driverRaceDeltas), [data, driverRaceDeltas]);
 	const simulatedConstructors = useMemo(
@@ -118,35 +110,21 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 		[data, constructorRaceDeltas],
 	);
 
-	const addRound = () => {
-		const name = customRaceName.trim();
-		if (!name) return;
-		if (raceNames.includes(name)) {
-			setSelectedRace(name);
-			setCustomRaceName("");
-			return;
-		}
-		setRaceNames((prev) => [...prev, name]);
-		setSelectedRace(name);
-		setCustomRaceName("");
-	};
-
 	return (
 		<div className="flex flex-col gap-6 pb-8">
 			<div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm text-zinc-400">
 				<p>
-					Official standings source: <span className="text-zinc-200">{data.source}</span> (season {data.season}, round {" "}
-					{data.round})
+					Official standings source: <span className="text-zinc-200">{data.source}</span> (season {data.season}, round {data.round})
 				</p>
-				<p>Simulation is race-by-race and local-only. Official standings remain unchanged.</p>
+				<p>Calculator mode: edit points for one selected race and compare official vs simulated standings instantly.</p>
 			</div>
 
 			<div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3">
 				<div className="mb-3 flex flex-wrap items-center gap-2">
-					<label className="text-xs text-zinc-400">Race editor</label>
+					<label className="text-xs text-zinc-400">Race</label>
 					<select
 						className="rounded border border-zinc-700 bg-zinc-950 p-1 text-xs"
-						value={selectedRace}
+						value={activeRace}
 						onChange={(e) => setSelectedRace(e.target.value)}
 					>
 						{raceNames.map((name) => (
@@ -155,33 +133,29 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 							</option>
 						))}
 					</select>
-					<input
-						className="w-52 rounded border border-zinc-700 bg-zinc-950 p-1 text-xs"
-						placeholder="Add custom race"
-						value={customRaceName}
-						onChange={(e) => setCustomRaceName(e.target.value)}
-					/>
-					<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={addRound} type="button">
-						Add race
+					<button
+						className="rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500"
+						onClick={() => {
+							setDriverRaceDeltas((prev) => clearRaceDeltasForRace(prev, activeRace));
+							setConstructorRaceDeltas((prev) => clearRaceDeltasForRace(prev, activeRace));
+						}}
+						type="button"
+					>
+						Reset selected race edits
 					</button>
 				</div>
 
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 					<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 						<h2 className="mb-3 text-xl">Drivers Championship</h2>
-						<DriverRaceEditor
-							race={selectedRace}
-							drivers={data.drivers}
-							raceDeltas={driverRaceDeltas}
-							setRaceDeltas={setDriverRaceDeltas}
-						/>
+						<DriverRaceEditor race={activeRace} drivers={data.drivers} raceDeltas={driverRaceDeltas} setRaceDeltas={setDriverRaceDeltas} />
 						<DriverTable official={data.drivers} simulated={simulatedDrivers} />
 					</section>
 
 					<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 						<h2 className="mb-3 text-xl">Constructors Championship</h2>
 						<ConstructorRaceEditor
-							race={selectedRace}
+							race={activeRace}
 							constructors={data.constructors}
 							raceDeltas={constructorRaceDeltas}
 							setRaceDeltas={setConstructorRaceDeltas}
@@ -217,9 +191,7 @@ function DriverRaceEditor({
 				<tbody>
 					{drivers.map((driver) => (
 						<tr key={driver.driverId} className="border-t border-zinc-900">
-							<td className="p-2">
-								{driver.givenName} {driver.familyName}
-							</td>
+							<td className="p-2">{driver.givenName} {driver.familyName}</td>
 							<td className="p-2 text-right">
 								<input
 									className="w-20 rounded border border-zinc-700 bg-zinc-900 p-1 text-right"
@@ -278,13 +250,7 @@ function ConstructorRaceEditor({
 	);
 }
 
-function DriverTable({
-	official,
-	simulated,
-}: {
-	official: DriverStanding[];
-	simulated: Array<DriverStanding & { simulatedPoints: number }>;
-}) {
+function DriverTable({ official, simulated }: { official: DriverStanding[]; simulated: Array<DriverStanding & { simulatedPoints: number }> }) {
 	const officialById = useMemo(
 		() => Object.fromEntries(official.map((item) => [item.driverId, item])) as Record<string, DriverStanding>,
 		[official],
@@ -309,9 +275,7 @@ function DriverTable({
 							<tr key={item.driverId} className="border-t border-zinc-900">
 								<td className="p-2">{idx + 1}</td>
 								<td className="p-2">{officialItem?.position ?? "-"}</td>
-								<td className="p-2">
-									{item.givenName} {item.familyName}
-								</td>
+								<td className="p-2">{item.givenName} {item.familyName}</td>
 								<td className="p-2 text-right">{item.points.toFixed(0)}</td>
 								<td className="p-2 text-right font-semibold">{item.simulatedPoints.toFixed(0)}</td>
 							</tr>

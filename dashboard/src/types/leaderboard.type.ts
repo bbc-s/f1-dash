@@ -10,6 +10,7 @@ export const leaderboardColumnOrderDefault = [
 	"throttle",
 	"brake",
 	"drs",
+	"extra",
 ] as const;
 
 export type LeaderboardColumnId = (typeof leaderboardColumnOrderDefault)[number];
@@ -33,4 +34,5 @@ export const leaderboardColumnsDefault: LeaderboardColumn[] = [
 	{ id: "throttle", label: "Throttle", visible: true, width: "5.5rem" },
 	{ id: "brake", label: "Brake", visible: true, width: "4.5rem" },
 	{ id: "drs", label: "DRS", visible: false, width: "3.5rem" },
+	{ id: "extra", label: "Extra Channels", visible: true, width: "16rem" },
 ];

@@ -24,12 +24,15 @@ export type WidgetConfig = {
 
 type WidgetLayoutState = {
 	hydrated: boolean;
+	revision: number;
 	layoutLocked: boolean;
+	snapToGrid: boolean;
 	order: WidgetId[];
 	config: Record<WidgetId, WidgetConfig>;
 
 	setHydrated: (hydrated: boolean) => void;
 	setLayoutLocked: (locked: boolean) => void;
+	setSnapToGrid: (snap: boolean) => void;
 	setVisible: (id: WidgetId, visible: boolean) => void;
 	setZoom: (id: WidgetId, zoom: number) => void;
 	setSize: (id: WidgetId, width: number, height: number) => void;
@@ -38,11 +41,12 @@ type WidgetLayoutState = {
 	resetLayout: () => void;
 };
 
-const MIN_ZOOM = 0.45;
-const MAX_ZOOM = 3.2;
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 3.5;
 const MIN_WIDTH = 280;
 const MIN_HEIGHT = 220;
 const WIDGET_GAP = 12;
+const GRID_STEP = 12;
 
 const defaultConfigFactory = (): Record<WidgetId, WidgetConfig> => ({
 	leaderboard: { visible: true, zoom: 1, x: 8, y: 8, width: 900, height: 480 },
@@ -56,14 +60,18 @@ const defaultConfigFactory = (): Record<WidgetId, WidgetConfig> => ({
 
 const defaultOrderFactory = (): WidgetId[] => [...widgetIds];
 
+function snap(value: number): number {
+	return Math.round(value / GRID_STEP) * GRID_STEP;
+}
+
 function clampConfigItem(item: WidgetConfig): WidgetConfig {
 	return {
 		...item,
 		zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, item.zoom)),
-		x: Math.max(0, Math.round(item.x)),
-		y: Math.max(0, Math.round(item.y)),
-		width: Math.max(MIN_WIDTH, Math.round(item.width)),
-		height: Math.max(MIN_HEIGHT, Math.round(item.height)),
+		x: Math.max(0, item.x),
+		y: Math.max(0, item.y),
+		width: Math.max(MIN_WIDTH, item.width),
+		height: Math.max(MIN_HEIGHT, item.height),
 	};
 }
 
@@ -79,7 +87,7 @@ function intersects(a: WidgetConfig, b: WidgetConfig): boolean {
 	return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-function resolveOverlaps(
+function resolveOverlapsOnResize(
 	config: Record<WidgetId, WidgetConfig>,
 	order: WidgetId[],
 	sourceId: WidgetId,
@@ -88,26 +96,13 @@ function resolveOverlaps(
 	const source = next[sourceId];
 	if (!source.visible) return next;
 
-	const queue = [sourceId];
-	const visited = new Set<WidgetId>();
+	for (const otherId of order) {
+		if (otherId === sourceId) continue;
+		const other = next[otherId];
+		if (!other.visible) continue;
+		if (!intersects(source, other)) continue;
 
-	while (queue.length > 0) {
-		const currentId = queue.shift() as WidgetId;
-		if (visited.has(currentId)) continue;
-		visited.add(currentId);
-		const current = next[currentId];
-		if (!current.visible) continue;
-
-		for (const otherId of order) {
-			if (otherId === currentId) continue;
-			const other = next[otherId];
-			if (!other.visible) continue;
-			if (!intersects(current, other)) continue;
-
-			const pushedY = current.y + current.height + WIDGET_GAP;
-			next[otherId] = { ...other, y: pushedY };
-			queue.push(otherId);
-		}
+		next[otherId] = { ...other, y: snap(source.y + source.height + WIDGET_GAP) };
 	}
 
 	return next;
@@ -138,57 +133,79 @@ function mergePersistedConfig(persisted?: Partial<Record<WidgetId, Partial<Widge
 	return merged;
 }
 
+function withRevision(
+	state: WidgetLayoutState,
+	payload: Partial<Pick<WidgetLayoutState, "layoutLocked" | "snapToGrid" | "order" | "config">>,
+): Partial<WidgetLayoutState> {
+	return {
+		...payload,
+		revision: state.revision + 1,
+	};
+}
+
 export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 	persist(
 		(set) => ({
 			hydrated: false,
+			revision: 0,
 			layoutLocked: true,
+			snapToGrid: true,
 			order: defaultOrderFactory(),
 			config: defaultConfigFactory(),
 
 			setHydrated: (hydrated) => set({ hydrated }),
-			setLayoutLocked: (layoutLocked) => set({ layoutLocked }),
+			setLayoutLocked: (layoutLocked) =>
+				set((state) => withRevision(state, { layoutLocked })),
+			setSnapToGrid: (snapToGrid) =>
+				set((state) => withRevision(state, { snapToGrid })),
 
 			setVisible: (id, visible) =>
-				set((state) => ({
-					config: {
-						...state.config,
-						[id]: { ...state.config[id], visible },
-					},
-				})),
+				set((state) =>
+					withRevision(state, {
+						config: {
+							...state.config,
+							[id]: { ...state.config[id], visible },
+						},
+					}),
+				),
 
 			setZoom: (id, zoom) =>
-				set((state) => ({
-					config: {
-						...state.config,
-						[id]: { ...state.config[id], zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom)) },
-					},
-				})),
+				set((state) =>
+					withRevision(state, {
+						config: {
+							...state.config,
+							[id]: { ...state.config[id], zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom)) },
+						},
+					}),
+				),
 
 			setSize: (id, width, height) =>
 				set((state) => {
+					const applySnap = state.snapToGrid;
 					const updated = {
 						...state.config,
 						[id]: {
 							...state.config[id],
-							width: Math.max(MIN_WIDTH, Math.round(width)),
-							height: Math.max(MIN_HEIGHT, Math.round(height)),
+							width: Math.max(MIN_WIDTH, applySnap ? snap(width) : width),
+							height: Math.max(MIN_HEIGHT, applySnap ? snap(height) : height),
 						},
 					};
-					return { config: resolveOverlaps(updated, state.order, id) };
+					return withRevision(state, { config: resolveOverlapsOnResize(updated, state.order, id) });
 				}),
 
 			setPosition: (id, x, y) =>
 				set((state) => {
-					const updated = {
-						...state.config,
-						[id]: {
-							...state.config[id],
-							x: Math.max(0, Math.round(x)),
-							y: Math.max(0, Math.round(y)),
+					const applySnap = state.snapToGrid;
+					return withRevision(state, {
+						config: {
+							...state.config,
+							[id]: {
+								...state.config[id],
+								x: Math.max(0, applySnap ? snap(x) : x),
+								y: Math.max(0, applySnap ? snap(y) : y),
+							},
 						},
-					};
-					return { config: resolveOverlaps(updated, state.order, id) };
+					});
 				}),
 
 			arrangeToGrid: () =>
@@ -196,8 +213,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					const updated = { ...state.config };
 					const visible = state.order.filter((id) => updated[id].visible);
 					const boardWidth = 1540;
-					const colWidth = 380;
-					const columns = Math.max(1, Math.floor((boardWidth + WIDGET_GAP) / (colWidth + WIDGET_GAP)));
+					const columns = Math.max(1, Math.floor((boardWidth + WIDGET_GAP) / (420 + WIDGET_GAP)));
 
 					let cursorX = 8;
 					let cursorY = 8;
@@ -206,12 +222,10 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 
 					for (const id of visible) {
 						const current = updated[id];
-						const width = Math.min(current.width, colWidth);
 						updated[id] = {
 							...current,
-							x: cursorX,
-							y: cursorY,
-							width,
+							x: snap(cursorX),
+							y: snap(cursorY),
 						};
 						rowHeight = Math.max(rowHeight, current.height);
 
@@ -222,27 +236,33 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 							cursorY += rowHeight + WIDGET_GAP;
 							rowHeight = 0;
 						} else {
-							cursorX += width + WIDGET_GAP;
+							cursorX += current.width + WIDGET_GAP;
 						}
 					}
 
-					return { config: clampConfig(updated) };
+					return withRevision(state, { config: clampConfig(updated) });
 				}),
 
-			resetLayout: () => ({
-				order: defaultOrderFactory(),
-				config: defaultConfigFactory(),
-				layoutLocked: true,
-			}),
+			resetLayout: () =>
+				set((state) =>
+					withRevision(state, {
+						order: defaultOrderFactory(),
+						config: defaultConfigFactory(),
+						layoutLocked: true,
+						snapToGrid: true,
+					}),
+				),
 		}),
 		{
-			name: "widget-layout-storage-v3",
+			name: "widget-layout-storage-v4",
 			storage: createJSONStorage(() => localStorage),
 			merge: (persisted, current) => {
 				const p = (persisted as Partial<WidgetLayoutState>) ?? {};
 				return {
 					...current,
+					revision: p.revision ?? current.revision,
 					layoutLocked: p.layoutLocked ?? current.layoutLocked,
+					snapToGrid: p.snapToGrid ?? current.snapToGrid,
 					order: sanitizeOrder(p.order),
 					config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
 				};

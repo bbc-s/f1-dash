@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useDataStore } from "@/stores/useDataStore";
+import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 
 import { sortPos } from "@/lib/sorting";
 import type { LeaderboardColumn, LeaderboardColumnId } from "@/types/leaderboard.type";
@@ -67,6 +68,7 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 	const setLeaderboardColumnVisible = useSettingsStore((state) => state.setLeaderboardColumnVisible);
 	const setLeaderboardColumnWidth = useSettingsStore((state) => state.setLeaderboardColumnWidth);
 	const moveLeaderboardColumn = useSettingsStore((state) => state.moveLeaderboardColumn);
+	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const [menuOpen, setMenuOpen] = useState(false);
 
 	const resizingRef = useRef<{
@@ -77,7 +79,7 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 
 	useEffect(() => {
 		const onMove = (event: MouseEvent) => {
-			if (!resizingRef.current) return;
+			if (!resizingRef.current || layoutLocked) return;
 			event.preventDefault();
 			const delta = event.clientX - resizingRef.current.startX;
 			const next = resizingRef.current.startWidthPx + delta;
@@ -92,21 +94,23 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 			window.removeEventListener("mousemove", onMove);
 			window.removeEventListener("mouseup", onUp);
 		};
-	}, [setLeaderboardColumnWidth]);
+	}, [setLeaderboardColumnWidth, layoutLocked]);
 
 	return (
 		<div className="mb-1 rounded border border-zinc-800 p-1">
 			<div className="mb-1 flex items-center justify-between px-1">
 				<p className="text-[11px] text-zinc-400">Columns</p>
-				<button
-					className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 hover:border-cyan-500"
-					onClick={() => setMenuOpen((v) => !v)}
-					type="button"
-				>
-					{menuOpen ? "Hide list" : "Column list"}
-				</button>
+				{!layoutLocked && (
+					<button
+						className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] text-zinc-200 hover:border-cyan-500"
+						onClick={() => setMenuOpen((v) => !v)}
+						type="button"
+					>
+						{menuOpen ? "Hide list" : "Column list"}
+					</button>
+				)}
 			</div>
-			{menuOpen && (
+			{menuOpen && !layoutLocked && (
 				<div className="mb-2 grid gap-1 rounded border border-zinc-800 bg-zinc-900/50 p-2 text-xs">
 					{allColumns.map((column) => (
 						<label key={column.id} className="flex items-center gap-2">
@@ -130,41 +134,45 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 				{columns.map((column) => (
 					<div key={column.id} className="group relative flex items-center rounded border border-zinc-800 bg-zinc-900/40 px-2 py-1">
 						<div className="truncate text-xs">{column.label}</div>
-						<div className="ml-auto hidden items-center gap-1 text-[10px] group-hover:flex">
-							<button
-								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
-								onClick={() => moveLeaderboardColumn(column.id, "left")}
-								type="button"
-							>
-								L
-							</button>
-							<button
-								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
-								onClick={() => moveLeaderboardColumn(column.id, "right")}
-								type="button"
-							>
-								R
-							</button>
-							<button
-								className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
-								onClick={() => setLeaderboardColumnVisible(column.id, false)}
-								type="button"
-							>
-								Hide
-							</button>
-						</div>
-						<div
-							className="absolute top-0 right-0 h-full w-2 cursor-col-resize"
-							onMouseDown={(event) => {
-								event.preventDefault();
-								event.stopPropagation();
-								resizingRef.current = {
-									id: column.id,
-									startX: event.clientX,
-									startWidthPx: widthToPx(column.width),
-								};
-							}}
-						/>
+						{!layoutLocked && (
+							<>
+								<div className="ml-auto hidden items-center gap-1 text-[10px] group-hover:flex">
+									<button
+										className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+										onClick={() => moveLeaderboardColumn(column.id, "left")}
+										type="button"
+									>
+										L
+									</button>
+									<button
+										className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+										onClick={() => moveLeaderboardColumn(column.id, "right")}
+										type="button"
+									>
+										R
+									</button>
+									<button
+										className="rounded border border-zinc-700 px-1 hover:border-cyan-500"
+										onClick={() => setLeaderboardColumnVisible(column.id, false)}
+										type="button"
+									>
+										Hide
+									</button>
+								</div>
+								<div
+									className="absolute top-0 right-0 h-full w-2 cursor-col-resize"
+									onMouseDown={(event) => {
+										event.preventDefault();
+										event.stopPropagation();
+										resizingRef.current = {
+											id: column.id,
+											startX: event.clientX,
+											startWidthPx: widthToPx(column.width),
+										};
+									}}
+								/>
+							</>
+						)}
 					</div>
 				))}
 			</div>

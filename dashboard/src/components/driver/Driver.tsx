@@ -26,7 +26,6 @@ type Props = {
 };
 
 const hasDRS = (drs: number) => drs > 9;
-
 const possibleDRS = (drs: number) => drs === 8;
 
 const inDangerZone = (position: number, sessionPart: number) => {
@@ -41,6 +40,17 @@ const inDangerZone = (position: number, sessionPart: number) => {
 	}
 };
 
+function renderExtraChannels(channels: Record<string, number>) {
+	const known = new Set(["0", "2", "3", "4", "5", "45"]);
+	const pairs = Object.entries(channels)
+		.filter(([key]) => !known.has(key))
+		.sort((a, b) => Number(a[0]) - Number(b[0]))
+		.slice(0, 6)
+		.map(([key, value]) => `${key}:${value}`);
+	if (pairs.length === 0) return "-";
+	return pairs.join(" | ");
+}
+
 export default function Driver({ driver, timingDriver, position, template, columns }: Props) {
 	const sessionPart = useDataStore((state) => state.state?.TimingData?.SessionPart);
 	const timingStatsDriver = useDataStore((state) => state.state?.TimingStats?.Lines[driver.RacingNumber]);
@@ -48,7 +58,6 @@ export default function Driver({ driver, timingDriver, position, template, colum
 	const carData = useDataStore((state) => (state?.carsData ? state.carsData[driver.RacingNumber].Channels : undefined));
 
 	const hasFastest = timingStatsDriver?.PersonalBestLapTime.Position == 1;
-
 	const favoriteDriver = useSettingsStore((state) => state.favoriteDrivers.includes(driver.RacingNumber));
 
 	return (
@@ -61,30 +70,19 @@ export default function Driver({ driver, timingDriver, position, template, colum
 				"bg-red-800/30": sessionPart != undefined && inDangerZone(position, sessionPart),
 			})}
 		>
-			<div
-				className="grid items-center gap-2"
-				style={{
-					gridTemplateColumns: template,
-				}}
-			>
+			<div className="grid items-center gap-2" style={{ gridTemplateColumns: template }}>
 				{columns.map((column) => {
 					switch (column.id) {
 						case "position":
 							return (
-								<DriverTag
-									key={column.id}
-									className="min-w-full!"
-									short={driver.Tla}
-									teamColor={driver.TeamColour}
-									position={position}
-								/>
+								<DriverTag key={column.id} className="min-w-full!" short={driver.Tla} teamColor={driver.TeamColour} position={position} />
 							);
 						case "drs":
 							return (
 								<DriverDRS
 									key={column.id}
-									on={carData ? hasDRS(carData[45]) : false}
-									possible={carData ? possibleDRS(carData[45]) : false}
+									on={carData ? hasDRS(carData["45"] ?? 0) : false}
+									possible={carData ? possibleDRS(carData["45"] ?? 0) : false}
 									inPit={timingDriver.InPit}
 									pitOut={timingDriver.PitOut}
 								/>
@@ -92,29 +90,23 @@ export default function Driver({ driver, timingDriver, position, template, colum
 						case "tire":
 							return <DriverTire key={column.id} stints={appTimingDriver?.Stints} />;
 						case "info":
-							return (
-								<DriverInfo
-									key={column.id}
-									timingDriver={timingDriver}
-									gridPos={appTimingDriver ? parseInt(appTimingDriver.GridPos) : 0}
-								/>
-							);
+							return <DriverInfo key={column.id} timingDriver={timingDriver} gridPos={appTimingDriver ? parseInt(appTimingDriver.GridPos) : 0} />;
 						case "gap":
 							return <DriverGap key={column.id} timingDriver={timingDriver} sessionPart={sessionPart} />;
 						case "laptime":
-							return (
-								<DriverLapTime key={column.id} last={timingDriver.LastLapTime} best={timingDriver.BestLapTime} hasFastest={hasFastest} />
-							);
+							return <DriverLapTime key={column.id} last={timingDriver.LastLapTime} best={timingDriver.BestLapTime} hasFastest={hasFastest} />;
 						case "sectors":
 							return <DriverMiniSectors key={column.id} sectors={timingDriver.Sectors} bestSectors={timingStatsDriver?.BestSectors} />;
 						case "speed":
-							return <p key={column.id} className="font-mono">{carData ? `${carData[2]} km/h` : "-"}</p>;
+							return <p key={column.id} className="font-mono">{carData ? `${carData["2"]} km/h` : "-"}</p>;
 						case "gear":
-							return <p key={column.id} className="font-mono text-xl">{carData ? carData[3] : "-"}</p>;
+							return <p key={column.id} className="font-mono text-xl">{carData ? carData["3"] : "-"}</p>;
 						case "throttle":
-							return <p key={column.id} className="font-mono">{carData ? `${carData[4]}%` : "-"}</p>;
+							return <p key={column.id} className="font-mono">{carData ? `${carData["4"]}%` : "-"}</p>;
 						case "brake":
-							return <p key={column.id} className="font-mono">{carData ? (carData[5] === 1 ? "ON" : "OFF") : "-"}</p>;
+							return <p key={column.id} className="font-mono">{carData ? (carData["5"] === 1 ? "ON" : "OFF") : "-"}</p>;
+						case "extra":
+							return <p key={column.id} className="truncate font-mono text-[11px] text-zinc-300">{carData ? renderExtraChannels(carData) : "-"}</p>;
 					}
 				})}
 			</div>
