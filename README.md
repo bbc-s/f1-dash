@@ -27,6 +27,12 @@ Run from local fork source code (build local images):
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
 ```
 
+If UI changes do not show after pull/build, run hard redeploy:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\ops\redeploy-local.ps1
+```
+
 Full guide: [SETUP.md](SETUP.md)
 
 ## Contributing

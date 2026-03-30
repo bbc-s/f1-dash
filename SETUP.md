@@ -7,6 +7,7 @@ A short tutorial on how to run f1-dash locally with Docker Desktop, Docker Compo
 - `compose.yaml`: local-only profile, binds all ports to `127.0.0.1`.
 - `compose.lan.yaml`: optional LAN override (still local network, not public internet).
 - `ops/start-local.ps1`: starts Docker (if needed), creates a backup, runs the stack.
+- `ops/redeploy-local.ps1`: hard redeploy (`down` + `build --no-cache` + `up --force-recreate`) with health check.
 - `ops/backup-state.ps1`: creates timestamped backups in `backups/runs/vX.Y.Z/...`.
 - `ops/bump-version.ps1`: increments semantic patch version in `VERSION` and `dashboard/package.json`.
 - `archive` service (source-build profile): live archive + replay clock API.
@@ -40,7 +41,10 @@ Run local-only from your fork source code (build local images):
 powershell -ExecutionPolicy Bypass -File .\ops\start-local.ps1 -BuildFromSource
 ```
 
-When running source-build, replay/archive API is available at:`r`n- Archive/Replay API: `http://127.0.0.1:4020``r`n- Auto-record starts automatically on container start (`ARCHIVE_AUTO_RECORD=true`).`r`n- Host storage path is configurable with `ARCHIVE_STORAGE_PATH_HOST` in `compose.env`.
+When running source-build, replay/archive API is available at:
+- Archive/Replay API: `http://127.0.0.1:4020`
+- Auto-record starts automatically on container start (`ARCHIVE_AUTO_RECORD=true`).
+- Host storage path is configurable with `ARCHIVE_STORAGE_PATH_HOST` in `compose.env`.
 
 Access:
 - Dashboard: `http://127.0.0.1:3000`
@@ -90,6 +94,12 @@ If started with source-build:
 
 ```powershell
 docker compose --env-file compose.env -f compose.yaml -f compose.local-build.yaml down
+```
+
+Hard redeploy source-build (recommended when UI changes do not appear):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\ops\redeploy-local.ps1
 ```
 
 ## Troubleshooting
