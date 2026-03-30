@@ -8,6 +8,7 @@ import type { Round as RoundType } from "@/types/schedule.type";
 import { groupSessionByDay } from "@/lib/groupSessionByDay";
 import { formatDayRange, formatMonth } from "@/lib/dateFormatter";
 import Flag from "@/components/Flag";
+import SessionReplayButton from "@/components/schedule/SessionReplayButton";
 
 type Props = {
 	round: RoundType;
@@ -81,12 +82,13 @@ export default function Round({ round, nextName }: Props) {
 								<div
 									key={`round.day.${i}.session.${j}`}
 									className={clsx("flex flex-col", !round.over && utc(session.end).isBefore(now()) && "opacity-50")}
-								>
-									<p className="w-28 overflow-hidden text-ellipsis whitespace-nowrap sm:w-auto">{session.kind}</p>
+									>
+										<p className="w-28 overflow-hidden text-ellipsis whitespace-nowrap sm:w-auto">{session.kind}</p>
+										<SessionReplayButton raceName={round.name} sessionName={session.kind} />
 
-									<p className="text-sm leading-none text-zinc-500">
-										{utc(session.start).local().format("HH:mm")} - {utc(session.end).local().format("HH:mm")}
-									</p>
+										<p className="text-sm leading-none text-zinc-500">
+											{utc(session.start).local().format("HH:mm")} - {utc(session.end).local().format("HH:mm")}
+										</p>
 								</div>
 							))}
 						</div>

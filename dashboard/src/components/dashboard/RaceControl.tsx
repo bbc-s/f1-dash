@@ -15,6 +15,7 @@ export default function RaceControl() {
 
 	const raceControlChime = useSettingsStore((state) => state.raceControlChime);
 	const raceControlChimeVolume = useSettingsStore((state) => state.raceControlChimeVolume);
+	const showBlueFlags = useSettingsStore((state) => state.showBlueFlagsInRaceControl);
 
 	const chimeRef = useRef<HTMLAudioElement | null>(null);
 	const pastMessageTimestamps = useRef<string[] | null>(null);
@@ -59,10 +60,10 @@ export default function RaceControl() {
 
 			{messages && gmtOffset && (
 				<AnimatePresence>
-					{messages
-						.sort(sortUtc)
-						.filter((msg) => (msg.Flag ? msg.Flag.toLowerCase() !== "blue" : true))
-						.map((msg, i) => (
+						{messages
+							.sort(sortUtc)
+							.filter((msg) => (showBlueFlags ? true : msg.Flag ? msg.Flag.toLowerCase() !== "blue" : true))
+							.map((msg, i) => (
 							<RaceControlMessage key={`msg.${i}`} msg={msg} gmtOffset={gmtOffset} />
 						))}
 				</AnimatePresence>

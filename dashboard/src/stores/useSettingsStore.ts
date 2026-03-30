@@ -41,6 +41,8 @@ type SettingsStore = {
 
 	raceControlChimeVolume: number;
 	setRaceControlChimeVolume: (raceControlChimeVolume: number) => void;
+	showBlueFlagsInRaceControl: boolean;
+	setShowBlueFlagsInRaceControl: (showBlueFlagsInRaceControl: boolean) => void;
 
 	delayIsPaused: boolean;
 	setDelayIsPaused: (delayIsPaused: boolean) => void;
@@ -51,6 +53,12 @@ type SettingsStore = {
 	setLeaderboardColumnWidth: (id: LeaderboardColumnId, width: string) => void;
 	moveLeaderboardColumn: (id: LeaderboardColumnId, direction: "left" | "right") => void;
 };
+
+function normalizeLeaderboardColumns(input?: LeaderboardColumn[]): LeaderboardColumn[] {
+	const current = Array.isArray(input) ? input : [];
+	const byId = new Map(current.map((column) => [column.id, column]));
+	return leaderboardColumnsDefault.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
+}
 
 export const useSettingsStore = create<SettingsStore>()(
 	subscribeWithSelector(
@@ -93,23 +101,32 @@ export const useSettingsStore = create<SettingsStore>()(
 
 				raceControlChimeVolume: 50,
 				setRaceControlChimeVolume: (raceControlChimeVolume: number) => set({ raceControlChimeVolume }),
+				showBlueFlagsInRaceControl: false,
+				setShowBlueFlagsInRaceControl: (showBlueFlagsInRaceControl: boolean) => set({ showBlueFlagsInRaceControl }),
 
 				delayIsPaused: true,
 				setDelayIsPaused: (delayIsPaused: boolean) => set({ delayIsPaused }),
 
 				leaderboardColumns: leaderboardColumnsDefault,
-				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) => set({ leaderboardColumns }),
+				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) =>
+					set({ leaderboardColumns: normalizeLeaderboardColumns(leaderboardColumns) }),
 				setLeaderboardColumnVisible: (id: LeaderboardColumnId, visible: boolean) =>
-					set((state) => ({
-						leaderboardColumns: state.leaderboardColumns.map((col) => (col.id === id ? { ...col, visible } : col)),
-					})),
+					set((state) => {
+						const normalized = normalizeLeaderboardColumns(state.leaderboardColumns);
+						return {
+							leaderboardColumns: normalized.map((col) => (col.id === id ? { ...col, visible } : col)),
+						};
+					}),
 				setLeaderboardColumnWidth: (id: LeaderboardColumnId, width: string) =>
-					set((state) => ({
-						leaderboardColumns: state.leaderboardColumns.map((col) => (col.id === id ? { ...col, width } : col)),
-					})),
+					set((state) => {
+						const normalized = normalizeLeaderboardColumns(state.leaderboardColumns);
+						return {
+							leaderboardColumns: normalized.map((col) => (col.id === id ? { ...col, width } : col)),
+						};
+					}),
 				moveLeaderboardColumn: (id: LeaderboardColumnId, direction: "left" | "right") =>
 					set((state) => {
-						const cols = [...state.leaderboardColumns];
+						const cols = [...normalizeLeaderboardColumns(state.leaderboardColumns)];
 						const index = cols.findIndex((c) => c.id === id);
 						if (index === -1) return state;
 						const target = direction === "left" ? index - 1 : index + 1;
@@ -119,12 +136,20 @@ export const useSettingsStore = create<SettingsStore>()(
 						return { leaderboardColumns: cols };
 					}),
 			}),
-			{
-				name: "settings-storage",
-				storage: createJSONStorage(() => localStorage),
-				onRehydrateStorage: (state) => {
-					return () => state.setDelayIsPaused(false);
-				},
+				{
+					name: "settings-storage",
+					storage: createJSONStorage(() => localStorage),
+					merge: (persisted, current) => {
+						const source = (persisted as Partial<SettingsStore>) ?? {};
+						return {
+							...current,
+							...source,
+							leaderboardColumns: normalizeLeaderboardColumns(source.leaderboardColumns),
+						};
+					},
+					onRehydrateStorage: (state) => {
+						return () => state.setDelayIsPaused(false);
+					},
 			},
 		),
 	),

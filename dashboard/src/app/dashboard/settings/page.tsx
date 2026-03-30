@@ -59,10 +59,17 @@ export default function SettingsPage() {
 
 			<h2 className="my-4 text-2xl">Race Control</h2>
 
-			<div className="flex gap-2">
-				<Toggle enabled={settings.raceControlChime} setEnabled={(v) => settings.setRaceControlChime(v)} />
-				<p className="text-zinc-500">Play Chime on new Race Control Message</p>
-			</div>
+				<div className="flex gap-2">
+					<Toggle enabled={settings.raceControlChime} setEnabled={(v) => settings.setRaceControlChime(v)} />
+					<p className="text-zinc-500">Play Chime on new Race Control Message</p>
+				</div>
+				<div className="flex gap-2">
+					<Toggle
+						enabled={settings.showBlueFlagsInRaceControl}
+						setEnabled={(v) => settings.setShowBlueFlagsInRaceControl(v)}
+					/>
+					<p className="text-zinc-500">Show blue flags in Race Control list</p>
+				</div>
 
 			{settings.raceControlChime && (
 				<div className="flex flex-row items-center gap-2">

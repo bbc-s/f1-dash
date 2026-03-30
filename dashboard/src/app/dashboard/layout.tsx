@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useDataEngine } from "@/hooks/useDataEngine";
@@ -168,17 +168,37 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const durationMs = useReplayStore((state) => state.durationMs);
 	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
+	const sessionInfo = useDataStore((state) => state.state?.SessionInfo);
+	const clockUtc = useDataStore((state) => state.state?.ExtrapolatedClock?.Utc);
+
+	type ReplayRecording = { id: string; label: string };
+	const hiddenRecordingsKey = "f1dash-hidden-recordings-v1";
+	const renamedRecordingsKey = "f1dash-renamed-recordings-v1";
+	const autoRecKey = "f1dash-auto-record-on-data-v1";
+	const pendingReplayKey = "f1dash-pending-replay-id-v1";
 
 	const [loadId, setLoadId] = useState("");
-	const [recordings, setRecordings] = useState<string[]>([]);
+	const [recordings, setRecordings] = useState<ReplayRecording[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveStorage, setArchiveStorage] = useState("");
 	const [archiveError, setArchiveError] = useState("");
 	const [recordToggleBusy, setRecordToggleBusy] = useState(false);
+	const [autoRecordOnData, setAutoRecordOnData] = useState(false);
+	const [renameValue, setRenameValue] = useState("");
 	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
+	const lastClockRef = useRef<string | null>(null);
+	const autoStartBusyRef = useRef(false);
 
 	const seconds = useMemo(() => Math.floor(cursorMs / 1000), [cursorMs]);
 	const totalSeconds = useMemo(() => Math.floor(durationMs / 1000), [durationMs]);
+
+	const buildRecordingName = useCallback(() => {
+		const meeting = sessionInfo?.Meeting?.Name?.trim() || "UnknownRace";
+		const session = sessionInfo?.Name?.trim() || "UnknownSession";
+		const stamp = new Date().toISOString().replaceAll(":", "").replaceAll("-", "").replace("T", "-").slice(0, 15);
+		const sanitize = (value: string) => value.replace(/[<>:\"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, " ").trim();
+		return `${sanitize(meeting)} + ${sanitize(session)} + ${stamp}`;
+	}, [sessionInfo]);
 
 	const refreshArchiveStatus = useCallback(async () => {
 		const status = (await controls.status()) as
@@ -191,64 +211,106 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 		return true;
 	}, [controls]);
 
+	const loadRecordings = useCallback(async () => {
+		const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+		const raw = res?.recordings ?? [];
+		const hidden = typeof window !== "undefined" ? new Set<string>(JSON.parse(localStorage.getItem(hiddenRecordingsKey) ?? "[]") as string[]) : new Set<string>();
+		const renamed = typeof window !== "undefined" ? (JSON.parse(localStorage.getItem(renamedRecordingsKey) ?? "{}") as Record<string, string>) : {};
+		const next = raw
+			.filter((id) => !hidden.has(id))
+			.map((id) => ({ id, label: renamed[id]?.trim() || id }))
+			.sort((a, b) => a.id.localeCompare(b.id))
+			.reverse();
+		setRecordings(next);
+	}, [controls]);
+
 	useEffect(() => {
 		let mounted = true;
 		const loadStatus = async () => {
 			if (!mounted) return;
 			await refreshArchiveStatus();
 		};
-		const loadRecordings = async () => {
-			if (!mounted) return;
-			const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
-			setRecordings(res?.recordings ?? []);
-		};
 		void loadStatus();
 		void loadRecordings();
 		const timer = window.setInterval(() => {
 			void loadStatus();
+			void loadRecordings();
 		}, 2000);
 		return () => {
 			mounted = false;
 			window.clearInterval(timer);
 		};
-	}, [refreshArchiveStatus, controls]);
+	}, [refreshArchiveStatus, controls, loadRecordings]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		setAutoRecordOnData(localStorage.getItem(autoRecKey) === "1");
+	}, []);
+
+	useEffect(() => {
+		if (!autoRecordOnData || archiveRecording || mode !== "live") return;
+		if (!clockUtc) return;
+		if (lastClockRef.current === clockUtc) return;
+		lastClockRef.current = clockUtc;
+		if (autoStartBusyRef.current) return;
+		autoStartBusyRef.current = true;
+		void (async () => {
+			try {
+				await controls.startRecording(buildRecordingName());
+				await refreshArchiveStatus();
+				await loadRecordings();
+			} finally {
+				autoStartBusyRef.current = false;
+			}
+		})();
+	}, [autoRecordOnData, archiveRecording, clockUtc, mode, controls, buildRecordingName, refreshArchiveStatus, loadRecordings]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const pending = localStorage.getItem(pendingReplayKey);
+		if (!pending) return;
+		localStorage.removeItem(pendingReplayKey);
+		void (async () => {
+			setMode("replay");
+			setLoadId(pending);
+			await controls.load(pending);
+			await controls.play();
+		})();
+	}, [controls, setMode]);
 
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
 	const actionPrimary = "cursor-pointer rounded border border-cyan-400 bg-cyan-700/35 px-2 py-1 text-xs font-semibold text-cyan-100 shadow-sm hover:bg-cyan-700/50";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
 
 	return (
-	<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
-		<div className="flex items-center gap-1">
-			<button className={mode === "live" ? actionPrimary : actionButton} onClick={() => setMode("live")} type="button">
-				Live
-			</button>
-			<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
-				Replay
-			</button>
-		</div>
-
+		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
+			<div className="flex items-center gap-1">
+				<button className={mode === "live" ? actionPrimary : actionButton} onClick={() => setMode("live")} type="button">
+					Live
+				</button>
+				<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
+					Replay
+				</button>
+			</div>
 			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
 				Mode: <span className={autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
 				{" | "}Rec: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
 				{archiveStorage ? ` | container:${archiveStorage}` : ""}
 				{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST ? ` | host:${env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}` : ""}
 			</div>
-
-		<div className="flex items-center gap-1">
-			<button
-				className="cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700"
+			<div className="flex items-center gap-1">
+				<button
+					className="cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700"
 					onClick={async () => {
 						try {
 							setRecordToggleBusy(true);
 							if (archiveRecording) {
 								await controls.stopRecording();
 							} else {
-								await controls.startRecording();
+								await controls.startRecording(buildRecordingName());
 							}
 							const ok = await refreshArchiveStatus();
-							const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
-							setRecordings(res?.recordings ?? []);
+							await loadRecordings();
 							if (!ok) setArchiveError("recorder status unavailable");
 						} catch {
 							setArchiveError("recording request failed");
@@ -265,55 +327,88 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						<>
 							Recording (manual) <span className="text-red-400">●</span>
 						</>
-				) : (
-					<>
-						Not rec (manual) <span className="text-zinc-500">●</span>
-					</>
-				)}
-			</button>
-			<button
-				className={actionButton}
-				onClick={async () => {
-					const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
-					setRecordings(res?.recordings ?? []);
-					await refreshArchiveStatus();
-				}}
-				type="button"
-			>
-				Refresh
-			</button>
-		</div>
-
-		{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
-
+					) : (
+						<>
+							Not rec (manual) <span className="text-zinc-500">●</span>
+						</>
+					)}
+				</button>
+				<button
+					className={autoRecordOnData ? actionPrimary : actionButton}
+					onClick={() => {
+						const next = !autoRecordOnData;
+						setAutoRecordOnData(next);
+						if (typeof window !== "undefined") localStorage.setItem(autoRecKey, next ? "1" : "0");
+					}}
+					type="button"
+				>
+					Auto rec on data: {autoRecordOnData ? "On" : "Off"}
+				</button>
+			</div>
+			{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
 			{mode === "replay" && (
 				<>
-				<select
-					className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-					value={loadId}
-					onChange={(e) => {
-						const value = e.target.value;
-						setLoadId(value);
-						if (value) void controls.load(value);
-					}}
-				>
-					<option value="">select recording</option>
-					{recordings.map((id) => (
-						<option key={id} value={id}>
-							{id}
-						</option>
-					))}
-				</select>
+					<select
+						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
+						value={loadId}
+						onChange={(e) => {
+							const value = e.target.value;
+							setLoadId(value);
+							if (value) void controls.load(value);
+						}}
+					>
+						<option value="">select recording</option>
+						{recordings.map((recording) => (
+							<option key={recording.id} value={recording.id}>
+								{recording.label}
+							</option>
+						))}
+					</select>
+					<input
+						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
+						value={renameValue}
+						onChange={(e) => setRenameValue(e.target.value)}
+						placeholder="Rename selected"
+					/>
+					<button
+						className={actionButton}
+						disabled={!loadId || !renameValue.trim()}
+						onClick={() => {
+							if (!loadId || !renameValue.trim() || typeof window === "undefined") return;
+							const renamed = JSON.parse(localStorage.getItem(renamedRecordingsKey) ?? "{}") as Record<string, string>;
+							renamed[loadId] = renameValue.trim();
+							localStorage.setItem(renamedRecordingsKey, JSON.stringify(renamed));
+							void loadRecordings();
+						}}
+						type="button"
+					>
+						Rename
+					</button>
+					<button
+						className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700"
+						disabled={!loadId}
+						onClick={() => {
+							if (!loadId || typeof window === "undefined") return;
+							const hidden = new Set<string>(JSON.parse(localStorage.getItem(hiddenRecordingsKey) ?? "[]") as string[]);
+							hidden.add(loadId);
+							localStorage.setItem(hiddenRecordingsKey, JSON.stringify(Array.from(hidden)));
+							setLoadId("");
+							void loadRecordings();
+						}}
+						type="button"
+					>
+						Delete
+					</button>
 					<div className="flex items-center gap-1">
-					{playing ? (
-						<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
-							⏸
-						</button>
-					) : (
-						<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
-							▶
-						</button>
-					)}
+						{playing ? (
+							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
+								⏸
+							</button>
+						) : (
+							<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
+								▶
+							</button>
+						)}
 						<button
 							className={iconButton}
 							onClick={() => {
@@ -327,25 +422,25 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						</button>
 						<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Stopped"}</span>
 					</div>
-				<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
-					<option value="0.25">0.25x</option>
-					<option value="0.5">0.5x</option>
-					<option value="1">1x</option>
-					<option value="2">2x</option>
-					<option value="4">4x</option>
-					<option value="8">8x</option>
-				</select>
-				<input
-					type="range"
-					className="w-56"
-					min={0}
-					max={Math.max(durationMs, 1)}
-					value={Math.min(cursorMs, Math.max(durationMs, 1))}
-					onChange={(e) => void controls.seek(Number(e.target.value))}
-				/>
-				<span className="text-xs text-zinc-400">
-					{seconds}s / {totalSeconds}s
-				</span>
+					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
+						<option value="0.25">0.25x</option>
+						<option value="0.5">0.5x</option>
+						<option value="1">1x</option>
+						<option value="2">2x</option>
+						<option value="4">4x</option>
+						<option value="8">8x</option>
+					</select>
+					<input
+						type="range"
+						className="w-56"
+						min={0}
+						max={Math.max(durationMs, 1)}
+						value={Math.min(cursorMs, Math.max(durationMs, 1))}
+						onChange={(e) => void controls.seek(Number(e.target.value))}
+					/>
+					<span className="text-xs text-zinc-400">
+						{seconds}s / {totalSeconds}s
+					</span>
 				</>
 			)}
 			<div className={compact ? "w-full" : "ml-auto"}>

@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export default function Footer() {
 	return (
-		<footer className="my-8 text-sm text-zinc-500">
-			<div className="mb-4 flex flex-wrap gap-2">
+		<footer className="my-3 border-t border-zinc-900 pt-2 text-xs text-zinc-500">
+			<div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
 				<p>
 					Made with ♥ by <TextLink website="https://slowly.dev">Slowly</TextLink>.
 				</p>
@@ -31,11 +31,11 @@ export default function Footer() {
 				<p>Version: {process.env.version}</p>
 			</div>
 
-			<p>
-				This project/website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA
-				ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trademarks of Formula One
-				Licensing B.V.
-			</p>
+				<p className="leading-tight">
+					This project/website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA
+					ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trademarks of Formula One
+					Licensing B.V.
+				</p>
 		</footer>
 	);
 }

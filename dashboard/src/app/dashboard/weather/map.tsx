@@ -10,6 +10,7 @@ type RaceOption = {
 	country: string;
 };
 type Coords = { lat: string; lon: string };
+const WEATHER_RACE_KEY = "weather-radar-selected-race-v1";
 
 const raceCoords: Record<string, Coords> = {
 	"Australian Grand Prix": { lat: "-37.8497", lon: "144.968" },
@@ -33,6 +34,7 @@ const raceCoords: Record<string, Coords> = {
 	"United States Grand Prix": { lat: "30.1328", lon: "-97.6411" },
 	"Mexico City Grand Prix": { lat: "19.4042", lon: "-99.0907" },
 	"São Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
+	"Sao Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
 	"Las Vegas Grand Prix": { lat: "36.1699", lon: "-115.1398" },
 	"Qatar Grand Prix": { lat: "25.49", lon: "51.4542" },
 	"Abu Dhabi Grand Prix": { lat: "24.4672", lon: "54.6031" },
@@ -69,6 +71,14 @@ async function loadRaceOptions(): Promise<RaceOption[]> {
 	}
 }
 
+function normalizeName(value?: string): string {
+	return (value ?? "")
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.trim();
+}
+
 export function WeatherMap() {
 	const meeting = useDataStore((state) => state.state?.SessionInfo?.Meeting);
 	const [coords, setCoords] = useState<{ lat: string; lon: string } | null>(null);
@@ -80,8 +90,12 @@ export function WeatherMap() {
 		const country = meeting?.Country?.Name?.trim();
 		return meetingName && country ? `${meetingName} (${country})` : "";
 	}, [meeting]);
-	const meetingName = useMemo(() => meeting?.Name?.trim().toLowerCase() ?? "", [meeting]);
-	const meetingCountry = useMemo(() => meeting?.Country?.Name?.trim().toLowerCase() ?? "", [meeting]);
+	const meetingName = useMemo(() => normalizeName(meeting?.Name), [meeting]);
+	const meetingCountry = useMemo(() => normalizeName(meeting?.Country?.Name), [meeting]);
+	const meetingCoords = useMemo(() => {
+		if (!meeting?.Name) return null;
+		return raceCoords[meeting.Name] ?? raceCoords[meeting.Name.replaceAll("SÃO", "São")] ?? null;
+	}, [meeting]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -90,14 +104,19 @@ export function WeatherMap() {
 			if (cancelled) return;
 			setRaces(options);
 			if (options.length === 0) return;
+			const persisted = typeof window !== "undefined" ? localStorage.getItem(WEATHER_RACE_KEY) : null;
+			if (persisted && options.some((option) => option.name === persisted)) {
+				setSelectedRace(persisted);
+				return;
+			}
 
 			const preferred =
-				options.find((option) => {
-					const name = option.name.toLowerCase();
-					const country = option.country.toLowerCase();
-					return (
-						(meetingName !== "" && (name.includes(meetingName) || meetingName.includes(name))) ||
-						(meetingCountry !== "" && country === meetingCountry)
+					options.find((option) => {
+						const name = normalizeName(option.name);
+						const country = normalizeName(option.country);
+						return (
+							(meetingName !== "" && (name.includes(meetingName) || meetingName.includes(name))) ||
+							(meetingCountry !== "" && country === meetingCountry)
 					);
 				}) ?? options[0];
 			setSelectedRace(preferred.name);
@@ -131,11 +150,16 @@ export function WeatherMap() {
 		};
 	}, [selectedRace, races]);
 
-	const lat = coords?.lat ?? "51.5074";
-	const lon = coords?.lon ?? "-0.1278";
+	useEffect(() => {
+		if (!selectedRace || typeof window === "undefined") return;
+		localStorage.setItem(WEATHER_RACE_KEY, selectedRace);
+	}, [selectedRace]);
+
+	const lat = coords?.lat ?? meetingCoords?.lat ?? "34.8431";
+	const lon = coords?.lon ?? meetingCoords?.lon ?? "136.541";
 
 	const windyUrl = useMemo(() => {
-		const zoom = 11;
+		const zoom = 13;
 		return `https://embed.windy.com/embed2.html?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${zoom}&level=surface&overlay=rain&menu=&message=&marker=true&calendar=now`;
 	}, [lat, lon]);
 
