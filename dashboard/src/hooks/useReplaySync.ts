@@ -223,6 +223,8 @@ export function useReplaySync(updateFns: {
 			}),
 		stopRecording: () => postReplay("/api/archive/stop"),
 		listRecordings: () => getReplay("/api/archive/recordings"),
+		deleteRecording: (recordingId: string) => postReplay(`/api/archive/recordings/${encodeURIComponent(recordingId)}/delete`),
+		setAutoRecord: (enabled: boolean) => postReplay("/api/archive/auto", { enabled }),
 		status: () => getReplay("/api/archive/status"),
 	};
 

@@ -51,11 +51,12 @@ export default function Layout({ children }: Props) {
 				</div>
 			</nav>
 
-			<main className="container mx-auto max-w-(--breakpoint-lg) px-4">
-				{children}
-
-				<Footer />
-			</main>
-		</>
-	);
+				<main className="container mx-auto flex min-h-[calc(100vh-3rem)] max-w-(--breakpoint-lg) flex-col px-4">
+					<div className="flex-1">{children}</div>
+					<div className="pt-4">
+						<Footer />
+					</div>
+				</main>
+			</>
+		);
 }

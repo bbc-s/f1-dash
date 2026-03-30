@@ -13,6 +13,7 @@ import Toggle from "@/components/ui/Toggle";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import Footer from "@/components/Footer";
+import { env } from "@/env";
 
 export default function SettingsPage() {
 	const settings = useSettingsStore();
@@ -126,11 +127,17 @@ export default function SettingsPage() {
 				<p className="text-zinc-500">Delay in seconds</p>
 			</div>
 
-			<Button className="mt-2 bg-red-500!" onClick={() => settings.setDelay(0)}>
-				Reset delay
-			</Button>
+				<Button className="mt-2 bg-red-500!" onClick={() => settings.setDelay(0)}>
+					Reset delay
+				</Button>
 
-			<Footer />
-		</div>
+				<h2 className="my-4 text-2xl">Replay Archive</h2>
+				<div className="text-sm text-zinc-500">
+					<p>Default auto record: {env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true" ? "On" : "Off"}</p>
+					{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST && <p>Host storage path: {env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}</p>}
+				</div>
+
+				<Footer />
+			</div>
 	);
 }

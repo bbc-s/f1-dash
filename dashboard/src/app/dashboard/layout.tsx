@@ -172,19 +172,14 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const clockUtc = useDataStore((state) => state.state?.ExtrapolatedClock?.Utc);
 
 	type ReplayRecording = { id: string; label: string };
-	const hiddenRecordingsKey = "f1dash-hidden-recordings-v1";
-	const renamedRecordingsKey = "f1dash-renamed-recordings-v1";
-	const autoRecKey = "f1dash-auto-record-on-data-v1";
 	const pendingReplayKey = "f1dash-pending-replay-id-v1";
 
 	const [loadId, setLoadId] = useState("");
 	const [recordings, setRecordings] = useState<ReplayRecording[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
-	const [archiveStorage, setArchiveStorage] = useState("");
 	const [archiveError, setArchiveError] = useState("");
 	const [recordToggleBusy, setRecordToggleBusy] = useState(false);
 	const [autoRecordOnData, setAutoRecordOnData] = useState(false);
-	const [renameValue, setRenameValue] = useState("");
 	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
 	const lastClockRef = useRef<string | null>(null);
 	const autoStartBusyRef = useRef(false);
@@ -202,11 +197,11 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 
 	const refreshArchiveStatus = useCallback(async () => {
 		const status = (await controls.status()) as
-			| { recording?: boolean; storagePath?: string; recordingId?: string | null }
+			| { recording?: boolean; storagePath?: string; recordingId?: string | null; autoRecordOnData?: boolean }
 			| null;
 		if (!status) return false;
 		setArchiveRecording(Boolean(status.recording));
-		setArchiveStorage(status.storagePath ?? "");
+		setAutoRecordOnData(Boolean(status.autoRecordOnData));
 		setArchiveError("");
 		return true;
 	}, [controls]);
@@ -214,11 +209,8 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const loadRecordings = useCallback(async () => {
 		const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
 		const raw = res?.recordings ?? [];
-		const hidden = typeof window !== "undefined" ? new Set<string>(JSON.parse(localStorage.getItem(hiddenRecordingsKey) ?? "[]") as string[]) : new Set<string>();
-		const renamed = typeof window !== "undefined" ? (JSON.parse(localStorage.getItem(renamedRecordingsKey) ?? "{}") as Record<string, string>) : {};
 		const next = raw
-			.filter((id) => !hidden.has(id))
-			.map((id) => ({ id, label: renamed[id]?.trim() || id }))
+			.map((id) => ({ id, label: id }))
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.reverse();
 		setRecordings(next);
@@ -241,11 +233,6 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 			window.clearInterval(timer);
 		};
 	}, [refreshArchiveStatus, controls, loadRecordings]);
-
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-		setAutoRecordOnData(localStorage.getItem(autoRecKey) === "1");
-	}, []);
 
 	useEffect(() => {
 		if (!autoRecordOnData || archiveRecording || mode !== "live") return;
@@ -293,10 +280,8 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				</button>
 			</div>
 			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
-				Mode: <span className={autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
+				Mode: <span className={autoRecordOnData || autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordOnData || autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
 				{" | "}Rec: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
-				{archiveStorage ? ` | container:${archiveStorage}` : ""}
-				{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST ? ` | host:${env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}` : ""}
 			</div>
 			<div className="flex items-center gap-1">
 				<button
@@ -335,10 +320,10 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				</button>
 				<button
 					className={autoRecordOnData ? actionPrimary : actionButton}
-					onClick={() => {
+					onClick={async () => {
 						const next = !autoRecordOnData;
-						setAutoRecordOnData(next);
-						if (typeof window !== "undefined") localStorage.setItem(autoRecKey, next ? "1" : "0");
+						await controls.setAutoRecord(next);
+						await refreshArchiveStatus();
 					}}
 					type="button"
 				>
@@ -364,34 +349,12 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 							</option>
 						))}
 					</select>
-					<input
-						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-						value={renameValue}
-						onChange={(e) => setRenameValue(e.target.value)}
-						placeholder="Rename selected"
-					/>
-					<button
-						className={actionButton}
-						disabled={!loadId || !renameValue.trim()}
-						onClick={() => {
-							if (!loadId || !renameValue.trim() || typeof window === "undefined") return;
-							const renamed = JSON.parse(localStorage.getItem(renamedRecordingsKey) ?? "{}") as Record<string, string>;
-							renamed[loadId] = renameValue.trim();
-							localStorage.setItem(renamedRecordingsKey, JSON.stringify(renamed));
-							void loadRecordings();
-						}}
-						type="button"
-					>
-						Rename
-					</button>
 					<button
 						className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700"
 						disabled={!loadId}
-						onClick={() => {
-							if (!loadId || typeof window === "undefined") return;
-							const hidden = new Set<string>(JSON.parse(localStorage.getItem(hiddenRecordingsKey) ?? "[]") as string[]);
-							hidden.add(loadId);
-							localStorage.setItem(hiddenRecordingsKey, JSON.stringify(Array.from(hidden)));
+						onClick={async () => {
+							if (!loadId) return;
+							await controls.deleteRecording(loadId);
 							setLoadId("");
 							void loadRecordings();
 						}}

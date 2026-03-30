@@ -11,7 +11,7 @@ use std::{
 use anyhow::Error;
 use axum::{
     Router,
-    extract::{Json, State},
+    extract::{Json, Path, State},
     http::{HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -56,6 +56,9 @@ struct RecordingRuntime {
     streams: Option<HashSet<String>>,
     seq: u64,
     started_at_ms: Option<i64>,
+    auto_on_data: bool,
+    race_name: Option<String>,
+    session_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -91,6 +94,16 @@ struct AppContext {
 struct StartRecordingRequest {
     name: Option<String>,
     streams: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AutoRecordRequest {
+    enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct RenameRecordingRequest {
+    name: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -144,6 +157,9 @@ async fn main() -> Result<(), Error> {
             streams: None,
             seq: 0,
             started_at_ms: None,
+            auto_on_data: env::var("ARCHIVE_AUTO_RECORD").unwrap_or_else(|_| "false".to_string()).to_lowercase() == "true",
+            race_name: None,
+            session_name: None,
         },
         replay: ReplayRuntime {
             recording_id: None,
@@ -188,6 +204,9 @@ async fn main() -> Result<(), Error> {
         .route("/api/health", get(health))
         .route("/api/archive/status", get(archive_status))
         .route("/api/archive/recordings", get(list_recordings))
+        .route("/api/archive/recordings/{id}/delete", post(delete_recording))
+        .route("/api/archive/recordings/{id}/rename", post(rename_recording))
+        .route("/api/archive/auto", post(set_auto_record))
         .route("/api/archive/start", post(start_recording))
         .route("/api/archive/stop", post(stop_recording))
         .route("/api/replay/load", post(load_replay))
@@ -345,6 +364,100 @@ fn tick_replay(replay: &mut ReplayRuntime) {
     }
 }
 
+fn sanitize_name(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| if matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') { ' ' } else { ch })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn default_recording_name(race_name: Option<&str>, session_name: Option<&str>) -> String {
+    let race = sanitize_name(race_name.unwrap_or("Unknown Race"));
+    let session = sanitize_name(session_name.unwrap_or("Unknown Session"));
+    let stamp = Utc::now().format("%Y%m%d-%H%M%S");
+    format!("{} + {} + {}", race, session, stamp)
+}
+
+fn extract_race_session(payload: &Value) -> (Option<String>, Option<String>) {
+    let race = payload
+        .get("SessionInfo")
+        .and_then(|info| info.get("Meeting"))
+        .and_then(|meeting| meeting.get("Name"))
+        .and_then(Value::as_str)
+        .map(|value| value.to_string());
+
+    let session = payload
+        .get("SessionInfo")
+        .and_then(|info| info.get("Name"))
+        .and_then(Value::as_str)
+        .map(|value| value.to_string());
+
+    (race, session)
+}
+
+async fn start_recording_internal(
+    ctx: &AppContext,
+    name: Option<String>,
+    streams: Option<Vec<String>>,
+) -> Result<String, (StatusCode, String)> {
+    let (recording_id, storage_path, retention_days) = {
+        let state = ctx.runtime.lock().await;
+        if state.recording.writer.is_some() {
+            return Err((StatusCode::CONFLICT, "recording already active".to_string()));
+        }
+
+        let generated = default_recording_name(
+            state.recording.race_name.as_deref(),
+            state.recording.session_name.as_deref(),
+        );
+
+        (
+            name.unwrap_or(generated),
+            state.storage_path.clone(),
+            state.retention_days,
+        )
+    };
+
+    let recording_dir = storage_path.join(&recording_id);
+    tokio_fs::create_dir_all(&recording_dir)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    let event_path = recording_dir.join("events.ndjson");
+    let file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(event_path)
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    let metadata_path = recording_dir.join("metadata.json");
+    let started_at_ms = Utc::now().timestamp_millis();
+    let metadata = json!({
+        "recordingId": recording_id,
+        "startedAtMs": started_at_ms,
+        "streams": streams.clone().unwrap_or_default()
+    });
+    let _ = tokio_fs::write(metadata_path, serde_json::to_vec_pretty(&metadata).unwrap_or_default()).await;
+
+    {
+        let mut state = ctx.runtime.lock().await;
+        state.recording.recording_id = Some(recording_id.clone());
+        state.recording.writer = Some(file);
+        state.recording.seq = 0;
+        state.recording.started_at_ms = Some(started_at_ms);
+        state.recording.streams = streams.map(|items| items.into_iter().collect::<HashSet<String>>());
+    }
+
+    if let Err(err) = cleanup_storage_path(storage_path, retention_days).await {
+        warn!(?err, "retention cleanup failed after start");
+    }
+
+    Ok(recording_id)
+}
 async fn run_ingest_loop(runtime: Arc<Mutex<AppRuntime>>) -> Result<(), Error> {
     loop {
         let url = {
@@ -373,6 +486,32 @@ async fn run_ingest_loop(runtime: Arc<Mutex<AppRuntime>>) -> Result<(), Error> {
                             continue;
                         }
                     };
+
+                    let (race_name, session_name) = extract_race_session(&payload);
+                    {
+                        let mut state = runtime.lock().await;
+                        if let Some(race) = race_name {
+                            state.recording.race_name = Some(race);
+                        }
+                        if let Some(session) = session_name {
+                            state.recording.session_name = Some(session);
+                        }
+                    }
+
+                    {
+                        let auto = {
+                            let state = runtime.lock().await;
+                            state.recording.auto_on_data && state.recording.writer.is_none()
+                        };
+                        if auto {
+                            let ctx = AppContext { runtime: runtime.clone() };
+                            if let Err((status, message)) = start_recording_internal(&ctx, None, None).await {
+                                if status != StatusCode::CONFLICT {
+                                    warn!(%message, "auto start recording failed");
+                                }
+                            }
+                        }
+                    }
 
                     let mut state = runtime.lock().await;
                     if state.recording.writer.is_none() {
@@ -419,6 +558,7 @@ async fn archive_status(State(ctx): State<AppContext>) -> impl IntoResponse {
             "replayCursorMs": state.replay.cursor_ms,
             "replayDurationMs": state.replay.duration_ms,
             "storagePath": state.storage_path,
+            "autoRecordOnData": state.recording.auto_on_data,
         })),
     )
 }
@@ -444,85 +584,101 @@ async fn list_recordings(State(ctx): State<AppContext>) -> impl IntoResponse {
     (StatusCode::OK, axum::Json(json!({ "recordings": recordings })))
 }
 
+async fn set_auto_record(
+    State(ctx): State<AppContext>,
+    Json(request): Json<AutoRecordRequest>,
+) -> impl IntoResponse {
+    let mut state = ctx.runtime.lock().await;
+    state.recording.auto_on_data = request.enabled;
+    (
+        StatusCode::OK,
+        axum::Json(json!({ "autoRecordOnData": state.recording.auto_on_data })),
+    )
+}
+
 async fn start_recording(
     State(ctx): State<AppContext>,
     Json(request): Json<StartRecordingRequest>,
 ) -> impl IntoResponse {
-    let (recording_id, storage_path, retention_days) = {
-        let state = ctx.runtime.lock().await;
-        if state.recording.writer.is_some() {
-            return (
-                StatusCode::CONFLICT,
-                axum::Json(json!({ "error": "recording already active" })),
-            )
-                .into_response();
-        }
-        (
-            request
-                .name
-                .unwrap_or_else(|| format!("rec-{}", Utc::now().format("%Y%m%d-%H%M%S"))),
-            state.storage_path.clone(),
-            state.retention_days,
+    match start_recording_internal(&ctx, request.name, request.streams).await {
+        Ok(recording_id) => (
+            StatusCode::OK,
+            axum::Json(json!({ "recordingId": recording_id })),
         )
-    };
+            .into_response(),
+        Err((status, message)) => (status, axum::Json(json!({ "error": message }))).into_response(),
+    }
+}
 
-    let recording_dir = storage_path.join(&recording_id);
-    if let Err(err) = tokio_fs::create_dir_all(&recording_dir).await {
+async fn rename_recording(
+    State(ctx): State<AppContext>,
+    Path(id): Path<String>,
+    Json(request): Json<RenameRecordingRequest>,
+) -> impl IntoResponse {
+    let new_name = sanitize_name(&request.name);
+    if new_name.is_empty() {
         return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::Json(json!({ "error": err.to_string() })),
+            StatusCode::BAD_REQUEST,
+            axum::Json(json!({ "error": "name cannot be empty" })),
         )
             .into_response();
     }
 
-    let event_path = recording_dir.join("events.ndjson");
-    let file = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(event_path)
-        .await
-    {
-        Ok(file) => file,
-        Err(err) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(json!({ "error": err.to_string() })),
-            )
-                .into_response();
-        }
+    let (storage_path, active_recording) = {
+        let state = ctx.runtime.lock().await;
+        (state.storage_path.clone(), state.recording.recording_id.clone())
     };
 
-    let metadata_path = recording_dir.join("metadata.json");
-    let started_at_ms = Utc::now().timestamp_millis();
-    let metadata = json!({
-        "recordingId": recording_id,
-        "startedAtMs": started_at_ms,
-        "streams": request.streams.clone().unwrap_or_default()
-    });
-    let _ = tokio_fs::write(metadata_path, serde_json::to_vec_pretty(&metadata).unwrap_or_default()).await;
-
-    {
-        let mut state = ctx.runtime.lock().await;
-        state.recording.recording_id = Some(recording_id.clone());
-        state.recording.writer = Some(file);
-        state.recording.seq = 0;
-        state.recording.started_at_ms = Some(started_at_ms);
-        state.recording.streams = request
-            .streams
-            .map(|items| items.into_iter().collect::<HashSet<String>>());
+    if active_recording.as_deref() == Some(id.as_str()) {
+        return (
+            StatusCode::CONFLICT,
+            axum::Json(json!({ "error": "cannot rename active recording" })),
+        )
+            .into_response();
     }
 
-    if let Err(err) = cleanup_storage_path(storage_path, retention_days).await {
-        warn!(?err, "retention cleanup failed after start");
+    let from = storage_path.join(&id);
+    let to = storage_path.join(&new_name);
+    match tokio_fs::rename(&from, &to).await {
+        Ok(_) => (
+            StatusCode::OK,
+            axum::Json(json!({ "renamed": true, "recordingId": new_name })),
+        )
+            .into_response(),
+        Err(err) => (
+            StatusCode::BAD_REQUEST,
+            axum::Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
     }
-
-    (
-        StatusCode::OK,
-        axum::Json(json!({ "recordingId": recording_id })),
-    )
-        .into_response()
 }
 
+async fn delete_recording(
+    State(ctx): State<AppContext>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let (storage_path, active_recording) = {
+        let state = ctx.runtime.lock().await;
+        (state.storage_path.clone(), state.recording.recording_id.clone())
+    };
+
+    if active_recording.as_deref() == Some(id.as_str()) {
+        return (
+            StatusCode::CONFLICT,
+            axum::Json(json!({ "error": "cannot delete active recording" })),
+        )
+            .into_response();
+    }
+
+    match tokio_fs::remove_dir_all(storage_path.join(&id)).await {
+        Ok(_) => (StatusCode::OK, axum::Json(json!({ "deleted": true }))).into_response(),
+        Err(err) => (
+            StatusCode::BAD_REQUEST,
+            axum::Json(json!({ "error": err.to_string() })),
+        )
+            .into_response(),
+    }
+}
 async fn stop_recording(State(ctx): State<AppContext>) -> impl IntoResponse {
     let mut state = ctx.runtime.lock().await;
     let Some(recording_id) = state.recording.recording_id.clone() else {
@@ -750,3 +906,19 @@ fn cors_layer() -> Result<CorsLayer, Error> {
         .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS]))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

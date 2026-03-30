@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { captureOpenPopouts, type PresetPopout } from "@/lib/widgetPopouts";
 
 export const widgetIds = [
 	"leaderboard",
@@ -31,6 +32,7 @@ export type LayoutPreset = {
 	order: WidgetId[];
 	config: Record<WidgetId, WidgetConfig>;
 	snapToGrid: boolean;
+	popouts: PresetPopout[];
 };
 
 type WidgetLayoutState = {
@@ -281,8 +283,9 @@ function mergePersistedPresets(persisted?: Array<Partial<LayoutPreset>>): Layout
 			updatedAt: typeof p.updatedAt === "number" ? p.updatedAt : Date.now(),
 			order: sanitizeOrder(p.order as WidgetId[] | undefined),
 			config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
-			snapToGrid: typeof p.snapToGrid === "boolean" ? p.snapToGrid : true,
-		}));
+				snapToGrid: typeof p.snapToGrid === "boolean" ? p.snapToGrid : true,
+				popouts: Array.isArray(p.popouts) ? (p.popouts as PresetPopout[]) : [],
+			}));
 }
 
 function withRevision(
@@ -428,17 +431,18 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					withRevision(state, {
 						presets: [
 							...state.presets,
-							{
-								id,
-								name: trimmed,
-								createdAt: Date.now(),
-								updatedAt: Date.now(),
-								order: [...state.order],
-								config: clampConfig({ ...state.config }),
-								snapToGrid: state.snapToGrid,
-							},
-						],
-					}),
+								{
+									id,
+									name: trimmed,
+									createdAt: Date.now(),
+									updatedAt: Date.now(),
+									order: [...state.order],
+									config: clampConfig({ ...state.config }),
+									snapToGrid: state.snapToGrid,
+									popouts: captureOpenPopouts(),
+								},
+							],
+						}),
 				);
 				return id;
 			},
@@ -461,16 +465,17 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					...withRevision(state, {
 						presets: state.presets.map((p) =>
 							p.id === id
-								? {
-									...p,
-									name: name?.trim() ? name.trim() : p.name,
-									updatedAt: Date.now(),
-									order: [...state.order],
-									config: clampConfig({ ...state.config }),
-									snapToGrid: state.snapToGrid,
-								}
-								: p,
-						),
+									? {
+										...p,
+										name: name?.trim() ? name.trim() : p.name,
+										updatedAt: Date.now(),
+										order: [...state.order],
+										config: clampConfig({ ...state.config }),
+										snapToGrid: state.snapToGrid,
+										popouts: captureOpenPopouts(),
+									}
+									: p,
+							),
 					}),
 				})),
 

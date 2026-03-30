@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import WidgetFrame from "@/components/widgets/WidgetFrame";
 import { useDataEngine } from "@/hooks/useDataEngine";
@@ -8,6 +8,7 @@ import { useLiveSyncSocket } from "@/hooks/useLiveSyncSocket";
 import { useReplaySync } from "@/hooks/useReplaySync";
 import { useStores } from "@/hooks/useStores";
 import { useWidgetLayoutSync } from "@/hooks/useWidgetLayoutSync";
+import { markPopoutClosed, markPopoutOpen, updatePopoutGeometry } from "@/lib/widgetPopouts";
 import { useReplayStore } from "@/stores/useReplayStore";
 import { useWidgetLayoutStore, widgetIds, type WidgetId } from "@/stores/useWidgetLayoutStore";
 import { widgetRegistry } from "@/widgets/registry";
@@ -36,6 +37,31 @@ export default function WidgetPopoutClient({ id }: { id: string }) {
 		const parsed = Number(raw ?? "1");
 		return Number.isFinite(parsed) ? Math.max(0.4, Math.min(3.5, parsed)) : 1;
 	});
+
+	useEffect(() => {
+		if (!valid) return;
+		markPopoutOpen(resolvedId, {
+			left: window.screenX,
+			top: window.screenY,
+			width: window.outerWidth,
+			height: window.outerHeight,
+		});
+		const timer = window.setInterval(() => {
+			updatePopoutGeometry(resolvedId, {
+				left: window.screenX,
+				top: window.screenY,
+				width: window.outerWidth,
+				height: window.outerHeight,
+			});
+		}, 400);
+		const onClose = () => markPopoutClosed(resolvedId);
+		window.addEventListener("beforeunload", onClose);
+		return () => {
+			window.clearInterval(timer);
+			window.removeEventListener("beforeunload", onClose);
+			markPopoutClosed(resolvedId);
+		};
+	}, [resolvedId, valid]);
 
 	if (!valid) {
 		return <div className="flex h-screen w-screen items-center justify-center p-4">Unknown widget</div>;

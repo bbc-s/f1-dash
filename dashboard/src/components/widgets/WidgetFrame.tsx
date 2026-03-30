@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
+import { openWidgetPopout } from "@/lib/widgetPopouts";
 import type { WidgetId } from "@/stores/useWidgetLayoutStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 
@@ -81,7 +82,6 @@ export default function WidgetFrame({
 	}, [id, setPosition, setSize, layoutLocked, fixedAtOrigin]);
 
 	const activeZoom = zoomOverride ?? config.zoom;
-	const popoutFeatures = `noopener,noreferrer,resizable=yes,width=${Math.max(1280, config.width + 240)},height=${Math.max(900, config.height + 260)}`;
 	const zoomStyle = useMemo<CSSProperties>(() => {
 		if (activeZoom === 1) return {};
 		return {
@@ -151,13 +151,13 @@ export default function WidgetFrame({
 								</button>
 							</>
 						)}
-						{showPopout && (
-							<button
-								className="rounded border border-zinc-700 px-2 py-0.5"
-								onClick={() => window.open(`/widget/${id}`, "_blank", popoutFeatures)}
-								type="button"
-							>
-								popout
+							{showPopout && (
+								<button
+									className="rounded border border-zinc-700 px-2 py-0.5"
+									onClick={() => openWidgetPopout(id, { width: Math.max(1280, config.width + 240), height: Math.max(900, config.height + 260) })}
+									type="button"
+								>
+									popout
 							</button>
 						)}
 					</div>
