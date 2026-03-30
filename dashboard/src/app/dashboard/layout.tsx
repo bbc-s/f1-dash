@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { useDataEngine } from "@/hooks/useDataEngine";
@@ -173,117 +173,147 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const [recordings, setRecordings] = useState<string[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveStorage, setArchiveStorage] = useState("");
+	const [archiveError, setArchiveError] = useState("");
+	const [recordToggleBusy, setRecordToggleBusy] = useState(false);
 	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
 
 	const seconds = useMemo(() => Math.floor(cursorMs / 1000), [cursorMs]);
 	const totalSeconds = useMemo(() => Math.floor(durationMs / 1000), [durationMs]);
 
+	const refreshArchiveStatus = useCallback(async () => {
+		const status = (await controls.status()) as
+			| { recording?: boolean; storagePath?: string; recordingId?: string | null }
+			| null;
+		if (!status) return false;
+		setArchiveRecording(Boolean(status.recording));
+		setArchiveStorage(status.storagePath ?? "");
+		setArchiveError("");
+		return true;
+	}, [controls]);
+
 	useEffect(() => {
 		let mounted = true;
 		const loadStatus = async () => {
-			const status = (await controls.status()) as
-				| { recording?: boolean; storagePath?: string; recordingId?: string | null }
-				| null;
-			if (!mounted || !status) return;
-			setArchiveRecording(Boolean(status.recording));
-			setArchiveStorage(status.storagePath ?? "");
+			if (!mounted) return;
+			await refreshArchiveStatus();
+		};
+		const loadRecordings = async () => {
+			if (!mounted) return;
+			const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+			setRecordings(res?.recordings ?? []);
 		};
 		void loadStatus();
+		void loadRecordings();
 		const timer = window.setInterval(() => {
 			void loadStatus();
-		}, 5000);
+		}, 2000);
 		return () => {
 			mounted = false;
 			window.clearInterval(timer);
 		};
-	}, [controls]);
+	}, [refreshArchiveStatus, controls]);
 
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
 	const actionPrimary = "cursor-pointer rounded border border-cyan-400 bg-cyan-700/35 px-2 py-1 text-xs font-semibold text-cyan-100 shadow-sm hover:bg-cyan-700/50";
-	const actionDanger = "cursor-pointer rounded border border-red-400 bg-red-700/30 px-2 py-1 text-xs font-semibold text-red-100 shadow-sm hover:bg-red-700/45";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
 
 	return (
-		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
-			<div className="flex items-center gap-1">
-				<button className={mode === "live" ? actionPrimary : actionButton} onClick={() => setMode("live")} type="button">
-					Live
-				</button>
-				<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
-					Replay
-				</button>
-				<button
-					className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-zinc-600 bg-zinc-900 text-zinc-300" : "border-emerald-500 bg-emerald-700/25 text-emerald-200"}`}
-					onClick={() => setLayoutLocked(!layoutLocked)}
-					type="button"
-				>
-					{layoutLocked ? "Unlock layout" : "Lock layout"}
-				</button>
-			</div>
+	<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
+		<div className="flex items-center gap-1">
+			<button className={mode === "live" ? actionPrimary : actionButton} onClick={() => setMode("live")} type="button">
+				Live
+			</button>
+			<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
+				Replay
+			</button>
+		</div>
 
 			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
-				Recorder mode: <span className={autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
-				{" | "}Status: {archiveRecording ? <span className="text-emerald-300">Recording</span> : <span className="text-zinc-500">Not recording</span>}
+				Mode: <span className={autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
+				{" | "}Rec: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
 				{archiveStorage ? ` | container:${archiveStorage}` : ""}
 				{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST ? ` | host:${env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}` : ""}
 			</div>
 
-			<div className="flex items-center gap-1">
-				<button
-					className={archiveRecording ? actionDanger : actionButton}
+		<div className="flex items-center gap-1">
+			<button
+				className="cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700"
 					onClick={async () => {
-						if (archiveRecording) {
-							await controls.stopRecording();
-							setArchiveRecording(false);
-							return;
+						try {
+							setRecordToggleBusy(true);
+							if (archiveRecording) {
+								await controls.stopRecording();
+							} else {
+								await controls.startRecording();
+							}
+							const ok = await refreshArchiveStatus();
+							const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+							setRecordings(res?.recordings ?? []);
+							if (!ok) setArchiveError("recorder status unavailable");
+						} catch {
+							setArchiveError("recording request failed");
+						} finally {
+							setRecordToggleBusy(false);
 						}
-						await controls.startRecording();
-						setArchiveRecording(true);
 					}}
+					disabled={recordToggleBusy}
 					type="button"
 				>
-					{archiveRecording ? "Recording (manual) ●" : "Not rec (manual) ●"}
-				</button>
-				<button
-					className={actionButton}
-					onClick={async () => {
-						const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
-						setRecordings(res?.recordings ?? []);
-					}}
-					type="button"
-				>
-					Refresh
-				</button>
-			</div>
+					{recordToggleBusy ? (
+						<>Updating…</>
+					) : archiveRecording ? (
+						<>
+							Recording (manual) <span className="text-red-400">●</span>
+						</>
+				) : (
+					<>
+						Not rec (manual) <span className="text-zinc-500">●</span>
+					</>
+				)}
+			</button>
+			<button
+				className={actionButton}
+				onClick={async () => {
+					const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+					setRecordings(res?.recordings ?? []);
+					await refreshArchiveStatus();
+				}}
+				type="button"
+			>
+				Refresh
+			</button>
+		</div>
+
+		{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
 
 			{mode === "replay" && (
 				<>
-					<select
-						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-						value={loadId}
-						onChange={(e) => {
-							const value = e.target.value;
-							setLoadId(value);
-							if (value) void controls.load(value);
-						}}
-					>
-						<option value="">select recording</option>
-						{recordings.map((id) => (
-							<option key={id} value={id}>
-								{id}
-							</option>
-						))}
-					</select>
+				<select
+					className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
+					value={loadId}
+					onChange={(e) => {
+						const value = e.target.value;
+						setLoadId(value);
+						if (value) void controls.load(value);
+					}}
+				>
+					<option value="">select recording</option>
+					{recordings.map((id) => (
+						<option key={id} value={id}>
+							{id}
+						</option>
+					))}
+				</select>
 					<div className="flex items-center gap-1">
-						{playing ? (
-							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
-								⏸
-							</button>
-						) : (
-							<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
-								▶
-							</button>
-						)}
+					{playing ? (
+						<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
+							⏸
+						</button>
+					) : (
+						<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
+							▶
+						</button>
+					)}
 						<button
 							className={iconButton}
 							onClick={() => {
@@ -295,29 +325,38 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						>
 							⏹
 						</button>
-						<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Paused"}</span>
+						<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Stopped"}</span>
 					</div>
-					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
-						<option value="0.25">0.25x</option>
-						<option value="0.5">0.5x</option>
-						<option value="1">1x</option>
-						<option value="2">2x</option>
-						<option value="4">4x</option>
-						<option value="8">8x</option>
-					</select>
-					<input
-						type="range"
-						className="w-56"
-						min={0}
-						max={Math.max(durationMs, 1)}
-						value={Math.min(cursorMs, Math.max(durationMs, 1))}
-						onChange={(e) => void controls.seek(Number(e.target.value))}
-					/>
-					<span className="text-xs text-zinc-400">
-						{seconds}s / {totalSeconds}s
-					</span>
+				<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
+					<option value="0.25">0.25x</option>
+					<option value="0.5">0.5x</option>
+					<option value="1">1x</option>
+					<option value="2">2x</option>
+					<option value="4">4x</option>
+					<option value="8">8x</option>
+				</select>
+				<input
+					type="range"
+					className="w-56"
+					min={0}
+					max={Math.max(durationMs, 1)}
+					value={Math.min(cursorMs, Math.max(durationMs, 1))}
+					onChange={(e) => void controls.seek(Number(e.target.value))}
+				/>
+				<span className="text-xs text-zinc-400">
+					{seconds}s / {totalSeconds}s
+				</span>
 				</>
 			)}
+			<div className={compact ? "w-full" : "ml-auto"}>
+				<button
+					className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-zinc-600 bg-zinc-900 text-zinc-300" : "border-emerald-500 bg-emerald-700/25 text-emerald-200"}`}
+					onClick={() => setLayoutLocked(!layoutLocked)}
+					type="button"
+				>
+					{layoutLocked ? "Unlock layout" : "Lock layout"}
+				</button>
+			</div>
 		</div>
 	);
 }

@@ -14,6 +14,7 @@ type SyncMessage = {
 		order: ReturnType<typeof useWidgetLayoutStore.getState>["order"];
 		config: ReturnType<typeof useWidgetLayoutStore.getState>["config"];
 		displaced: ReturnType<typeof useWidgetLayoutStore.getState>["displaced"];
+		presets: ReturnType<typeof useWidgetLayoutStore.getState>["presets"];
 		layoutLocked: boolean;
 		snapToGrid: boolean;
 	};
@@ -40,6 +41,7 @@ export function useWidgetLayoutSync() {
 					order: state.order,
 					config: state.config,
 					displaced: state.displaced,
+					presets: state.presets,
 					layoutLocked: state.layoutLocked,
 					snapToGrid: state.snapToGrid,
 				},
@@ -60,6 +62,7 @@ export function useWidgetLayoutSync() {
 				order: message.payload.order,
 				config: message.payload.config,
 				displaced: message.payload.displaced,
+				presets: message.payload.presets,
 				layoutLocked: message.payload.layoutLocked,
 				snapToGrid: message.payload.snapToGrid,
 			});
