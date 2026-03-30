@@ -1,13 +1,13 @@
 import { AnimatePresence, LayoutGroup } from "motion/react";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useDataStore } from "@/stores/useDataStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 
 import { sortPos } from "@/lib/sorting";
-import type { LeaderboardColumn, LeaderboardColumnId } from "@/types/leaderboard.type";
+import { leaderboardColumnsDefault, type LeaderboardColumn, type LeaderboardColumnId } from "@/types/leaderboard.type";
 
 import Driver from "@/components/driver/Driver";
 
@@ -30,7 +30,11 @@ export default function LeaderBoard() {
 	const drivers = useDataStore(({ state }) => state?.DriverList);
 	const driversTiming = useDataStore(({ state }) => state?.TimingData);
 	const showTableHeader = useSettingsStore((state) => state.tableHeaders);
-	const columns = useSettingsStore((state) => state.leaderboardColumns);
+	const storedColumns = useSettingsStore((state) => state.leaderboardColumns);
+	const columns = useMemo(() => {
+		const byId = new Map(storedColumns.map((col) => [col.id, col]));
+		return leaderboardColumnsDefault.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
+	}, [storedColumns]);
 	const visibleColumns = columns.filter((col) => col.visible);
 	const template = visibleColumns.map((col) => col.width).join(" ");
 
@@ -64,7 +68,11 @@ export default function LeaderBoard() {
 }
 
 function TableHeaders({ template, columns }: { template: string; columns: LeaderboardColumn[] }) {
-	const allColumns = useSettingsStore((state) => state.leaderboardColumns);
+	const storedColumns = useSettingsStore((state) => state.leaderboardColumns);
+	const allColumns = useMemo(() => {
+		const byId = new Map(storedColumns.map((col) => [col.id, col]));
+		return leaderboardColumnsDefault.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
+	}, [storedColumns]);
 	const setLeaderboardColumnVisible = useSettingsStore((state) => state.setLeaderboardColumnVisible);
 	const setLeaderboardColumnWidth = useSettingsStore((state) => state.setLeaderboardColumnWidth);
 	const moveLeaderboardColumn = useSettingsStore((state) => state.moveLeaderboardColumn);
@@ -181,13 +189,13 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 }
 
 const SkeletonDriver = () => {
-	const template = useSettingsStore((state) =>
-		state.leaderboardColumns
-			.filter((col) => col.visible)
-			.map((col) => col.width)
-			.join(" "),
-	);
-	const visibleCount = useSettingsStore((state) => state.leaderboardColumns.filter((col) => col.visible).length);
+	const storedColumns = useSettingsStore((state) => state.leaderboardColumns);
+	const mergedColumns = useMemo(() => {
+		const byId = new Map(storedColumns.map((col) => [col.id, col]));
+		return leaderboardColumnsDefault.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
+	}, [storedColumns]);
+	const template = mergedColumns.filter((col) => col.visible).map((col) => col.width).join(" ");
+	const visibleCount = mergedColumns.filter((col) => col.visible).length;
 
 	const animateClass = "h-8 animate-pulse rounded-md bg-zinc-800";
 

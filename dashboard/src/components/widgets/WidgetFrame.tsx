@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
 import type { WidgetId } from "@/stores/useWidgetLayoutStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
@@ -82,6 +82,12 @@ export default function WidgetFrame({
 
 	const activeZoom = zoomOverride ?? config.zoom;
 	const popoutFeatures = `noopener,noreferrer,resizable=yes,width=${Math.max(1280, config.width + 240)},height=${Math.max(900, config.height + 260)}`;
+	const zoomStyle = useMemo<CSSProperties>(() => {
+		if (activeZoom === 1) return {};
+		return {
+			zoom: activeZoom as unknown as CSSProperties["zoom"],
+		};
+	}, [activeZoom]);
 
 	return (
 		<div
@@ -158,7 +164,7 @@ export default function WidgetFrame({
 				</div>
 			)}
 
-			<div className={showChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto"} style={{ fontSize: `${Math.round(activeZoom * 100)}%` }}>
+			<div className={showChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto"} style={zoomStyle}>
 				{children}
 			</div>
 		</div>

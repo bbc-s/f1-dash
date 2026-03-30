@@ -51,6 +51,20 @@ function renderExtraChannels(channels: Record<string, number>) {
 	return pairs.join(" | ");
 }
 
+function getExperimentalRaw(channels: Record<string, number> | undefined) {
+	if (!channels) return { battery: "-", overtake: "-", straight: "-", boost: "-" };
+	const known = new Set(["0", "2", "3", "4", "5", "45"]);
+	const unknown = Object.entries(channels)
+		.filter(([key]) => !known.has(key))
+		.sort((a, b) => Number(a[0]) - Number(b[0]));
+	return {
+		battery: unknown[0] ? `${unknown[0][1]} (${unknown[0][0]})` : "-",
+		overtake: unknown[1] ? `${unknown[1][1]} (${unknown[1][0]})` : "-",
+		straight: unknown[2] ? `${unknown[2][1]} (${unknown[2][0]})` : "-",
+		boost: unknown[3] ? `${unknown[3][1]} (${unknown[3][0]})` : "-",
+	};
+}
+
 export default function Driver({ driver, timingDriver, position, template, columns }: Props) {
 	const sessionPart = useDataStore((state) => state.state?.TimingData?.SessionPart);
 	const timingStatsDriver = useDataStore((state) => state.state?.TimingStats?.Lines[driver.RacingNumber]);
@@ -59,6 +73,7 @@ export default function Driver({ driver, timingDriver, position, template, colum
 
 	const hasFastest = timingStatsDriver?.PersonalBestLapTime.Position == 1;
 	const favoriteDriver = useSettingsStore((state) => state.favoriteDrivers.includes(driver.RacingNumber));
+	const experimentalRaw = getExperimentalRaw(carData);
 
 	return (
 		<motion.div
@@ -105,6 +120,16 @@ export default function Driver({ driver, timingDriver, position, template, colum
 							return <p key={column.id} className="font-mono">{carData ? `${carData["4"]}%` : "-"}</p>;
 						case "brake":
 							return <p key={column.id} className="font-mono">{carData ? (carData["5"] === 1 ? "ON" : "OFF") : "-"}</p>;
+						case "rpm":
+							return <p key={column.id} className="font-mono">{carData ? `${carData["0"] ?? "-"} rpm` : "-"}</p>;
+						case "battery-deploy":
+							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.battery}</p>;
+						case "overtake-mode":
+							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.overtake}</p>;
+						case "straight-mode":
+							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.straight}</p>;
+						case "boost":
+							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.boost}</p>;
 						case "extra":
 							return <p key={column.id} className="truncate font-mono text-[11px] text-zinc-300">{carData ? renderExtraChannels(carData) : "-"}</p>;
 					}

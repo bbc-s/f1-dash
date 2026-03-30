@@ -171,6 +171,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const [recordings, setRecordings] = useState<string[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveStorage, setArchiveStorage] = useState("");
+	const [archiveRecordingId, setArchiveRecordingId] = useState<string>("");
 	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD !== "false";
 
 	const seconds = useMemo(() => Math.floor(cursorMs / 1000), [cursorMs]);
@@ -185,6 +186,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 			if (!mounted || !status) return;
 			setArchiveRecording(Boolean(status.recording));
 			setArchiveStorage(status.storagePath ?? "");
+			setArchiveRecordingId(status.recordingId ?? "");
 		};
 		void loadStatus();
 		const timer = window.setInterval(() => {
@@ -217,13 +219,17 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				{archiveStorage ? ` | container:${archiveStorage}` : ""}
 				{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST ? ` | host:${env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}` : ""}
 			</div>
+			<div className={`rounded border px-2 py-1 text-[11px] font-semibold ${archiveRecording ? "border-red-500 bg-red-700/30 text-red-100" : "border-zinc-700 bg-zinc-900 text-zinc-400"}`}>
+				{archiveRecording ? `REC ON${archiveRecordingId ? ` (${archiveRecordingId})` : ""}` : "REC OFF"}
+			</div>
 
 			<div className="flex items-center gap-1">
 				<button
 					className={actionPrimary}
 					onClick={async () => {
-						await controls.startRecording();
+						const response = (await controls.startRecording()) as { recordingId?: string } | null;
 						setArchiveRecording(true);
+						setArchiveRecordingId(response?.recordingId ?? archiveRecordingId);
 					}}
 					type="button"
 				>
@@ -234,6 +240,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 					onClick={async () => {
 						await controls.stopRecording();
 						setArchiveRecording(false);
+						setArchiveRecordingId("");
 					}}
 					type="button"
 				>

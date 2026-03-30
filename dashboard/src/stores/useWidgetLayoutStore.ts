@@ -108,6 +108,42 @@ function resolveOverlapsOnResize(
 	return next;
 }
 
+function resolveOverlapsFromSource(
+	config: Record<WidgetId, WidgetConfig>,
+	order: WidgetId[],
+	sourceId: WidgetId,
+): Record<WidgetId, WidgetConfig> {
+	const next = clampConfig(config);
+	const source = next[sourceId];
+	if (!source.visible) return next;
+
+	const queue: WidgetId[] = [sourceId];
+	const processed = new Set<WidgetId>();
+
+	while (queue.length > 0) {
+		const currentId = queue.shift();
+		if (!currentId || processed.has(currentId)) continue;
+		processed.add(currentId);
+		const current = next[currentId];
+		if (!current.visible) continue;
+
+		for (const otherId of order) {
+			if (otherId === currentId) continue;
+			const other = next[otherId];
+			if (!other.visible) continue;
+			if (!intersects(current, other)) continue;
+
+			const nextY = snap(current.y + current.height + WIDGET_GAP);
+			if (other.y !== nextY) {
+				next[otherId] = { ...other, y: nextY };
+				queue.push(otherId);
+			}
+		}
+	}
+
+	return next;
+}
+
 function sanitizeOrder(order: WidgetId[] | undefined): WidgetId[] {
 	const source = order && order.length > 0 ? order : defaultOrderFactory();
 	const uniq = new Set<WidgetId>();
@@ -196,14 +232,17 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 			setPosition: (id, x, y) =>
 				set((state) => {
 					const applySnap = state.snapToGrid;
+					const updated = {
+						...state.config,
+						[id]: {
+							...state.config[id],
+							x: Math.max(0, applySnap ? snap(x) : x),
+							y: Math.max(0, applySnap ? snap(y) : y),
+						},
+					};
 					return withRevision(state, {
 						config: {
-							...state.config,
-							[id]: {
-								...state.config[id],
-								x: Math.max(0, applySnap ? snap(x) : x),
-								y: Math.max(0, applySnap ? snap(y) : y),
-							},
+							...resolveOverlapsFromSource(updated, state.order, id),
 						},
 					});
 				}),

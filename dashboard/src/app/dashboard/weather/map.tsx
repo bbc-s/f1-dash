@@ -9,6 +9,34 @@ type RaceOption = {
 	name: string;
 	country: string;
 };
+type Coords = { lat: string; lon: string };
+
+const raceCoords: Record<string, Coords> = {
+	"Australian Grand Prix": { lat: "-37.8497", lon: "144.968" },
+	"Chinese Grand Prix": { lat: "31.3389", lon: "121.2197" },
+	"Japanese Grand Prix": { lat: "34.8431", lon: "136.541" },
+	"Bahrain Grand Prix": { lat: "26.0325", lon: "50.5106" },
+	"Saudi Arabian Grand Prix": { lat: "21.6319", lon: "39.1044" },
+	"Miami Grand Prix": { lat: "25.9581", lon: "-80.2389" },
+	"Emilia Romagna Grand Prix": { lat: "44.3439", lon: "11.7167" },
+	"Monaco Grand Prix": { lat: "43.7347", lon: "7.4206" },
+	"Canadian Grand Prix": { lat: "45.5017", lon: "-73.5228" },
+	"Spanish Grand Prix": { lat: "41.57", lon: "2.2611" },
+	"Austrian Grand Prix": { lat: "47.2197", lon: "14.7647" },
+	"British Grand Prix": { lat: "52.0786", lon: "-1.0169" },
+	"Belgian Grand Prix": { lat: "50.4372", lon: "5.9714" },
+	"Hungarian Grand Prix": { lat: "47.5789", lon: "19.2486" },
+	"Dutch Grand Prix": { lat: "52.3888", lon: "4.5409" },
+	"Italian Grand Prix": { lat: "45.6156", lon: "9.2811" },
+	"Azerbaijan Grand Prix": { lat: "40.3725", lon: "49.8533" },
+	"Singapore Grand Prix": { lat: "1.2914", lon: "103.864" },
+	"United States Grand Prix": { lat: "30.1328", lon: "-97.6411" },
+	"Mexico City Grand Prix": { lat: "19.4042", lon: "-99.0907" },
+	"São Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
+	"Las Vegas Grand Prix": { lat: "36.1699", lon: "-115.1398" },
+	"Qatar Grand Prix": { lat: "25.49", lon: "51.4542" },
+	"Abu Dhabi Grand Prix": { lat: "24.4672", lon: "54.6031" },
+};
 
 type JolpicaRace = {
 	raceName: string;
@@ -85,6 +113,11 @@ export function WeatherMap() {
 		const resolve = async () => {
 			const race = races.find((item) => item.name === selectedRace);
 			if (!race) return;
+			const exact = raceCoords[race.name];
+			if (exact) {
+				if (!cancelled) setCoords(exact);
+				return;
+			}
 			const query = `${race.name}, ${race.country} circuit`;
 			const fallback = `${race.country} ${race.name} track`;
 			const found = (await fetchCoords(query)) ?? (await fetchCoords(fallback));
