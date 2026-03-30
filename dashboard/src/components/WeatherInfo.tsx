@@ -10,7 +10,10 @@ export default function DataWeatherInfo() {
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="text-xs text-zinc-500">Live weather source: F1 feed (numerical)</div>
+			<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+				<span>Live weather source: F1 feed (numerical)</span>
+				<span>Numerical weather: F1 feed | Radar: Windy</span>
+			</div>
 			<div className="flex justify-between gap-4">
 				{weather ? (
 					<>

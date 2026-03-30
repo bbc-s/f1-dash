@@ -13,6 +13,7 @@ type SyncMessage = {
 		revision: number;
 		order: ReturnType<typeof useWidgetLayoutStore.getState>["order"];
 		config: ReturnType<typeof useWidgetLayoutStore.getState>["config"];
+		displaced: ReturnType<typeof useWidgetLayoutStore.getState>["displaced"];
 		layoutLocked: boolean;
 		snapToGrid: boolean;
 	};
@@ -38,6 +39,7 @@ export function useWidgetLayoutSync() {
 					revision: state.revision,
 					order: state.order,
 					config: state.config,
+					displaced: state.displaced,
 					layoutLocked: state.layoutLocked,
 					snapToGrid: state.snapToGrid,
 				},
@@ -57,6 +59,7 @@ export function useWidgetLayoutSync() {
 				revision: message.payload.revision,
 				order: message.payload.order,
 				config: message.payload.config,
+				displaced: message.payload.displaced,
 				layoutLocked: message.payload.layoutLocked,
 				snapToGrid: message.payload.snapToGrid,
 			});

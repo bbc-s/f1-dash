@@ -14,6 +14,7 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
 import { useDataStore } from "@/stores/useDataStore";
 import { useReplayStore } from "@/stores/useReplayStore";
+import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 import { env } from "@/env";
 
 import Sidebar from "@/components/Sidebar";
@@ -165,14 +166,14 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const speed = useReplayStore((state) => state.speed);
 	const cursorMs = useReplayStore((state) => state.cursorMs);
 	const durationMs = useReplayStore((state) => state.durationMs);
-	const recordingId = useReplayStore((state) => state.recordingId);
+	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
+	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
 
 	const [loadId, setLoadId] = useState("");
 	const [recordings, setRecordings] = useState<string[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveStorage, setArchiveStorage] = useState("");
-	const [archiveRecordingId, setArchiveRecordingId] = useState<string>("");
-	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD !== "false";
+	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
 
 	const seconds = useMemo(() => Math.floor(cursorMs / 1000), [cursorMs]);
 	const totalSeconds = useMemo(() => Math.floor(durationMs / 1000), [durationMs]);
@@ -186,7 +187,6 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 			if (!mounted || !status) return;
 			setArchiveRecording(Boolean(status.recording));
 			setArchiveStorage(status.storagePath ?? "");
-			setArchiveRecordingId(status.recordingId ?? "");
 		};
 		void loadStatus();
 		const timer = window.setInterval(() => {
@@ -201,6 +201,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
 	const actionPrimary = "cursor-pointer rounded border border-cyan-400 bg-cyan-700/35 px-2 py-1 text-xs font-semibold text-cyan-100 shadow-sm hover:bg-cyan-700/50";
 	const actionDanger = "cursor-pointer rounded border border-red-400 bg-red-700/30 px-2 py-1 text-xs font-semibold text-red-100 shadow-sm hover:bg-red-700/45";
+	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
 
 	return (
 		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
@@ -211,40 +212,37 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
 					Replay
 				</button>
+				<button
+					className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-zinc-600 bg-zinc-900 text-zinc-300" : "border-emerald-500 bg-emerald-700/25 text-emerald-200"}`}
+					onClick={() => setLayoutLocked(!layoutLocked)}
+					type="button"
+				>
+					{layoutLocked ? "Unlock layout" : "Lock layout"}
+				</button>
 			</div>
 
 			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
-				Mode: <span className={autoRecordEnabled ? "text-cyan-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO + manual" : "MANUAL"}</span>
-				{" | "}Recorder: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
+				Recorder mode: <span className={autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
+				{" | "}Status: {archiveRecording ? <span className="text-emerald-300">Recording</span> : <span className="text-zinc-500">Not recording</span>}
 				{archiveStorage ? ` | container:${archiveStorage}` : ""}
 				{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST ? ` | host:${env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}` : ""}
-			</div>
-			<div className={`rounded border px-2 py-1 text-[11px] font-semibold ${archiveRecording ? "border-red-500 bg-red-700/30 text-red-100" : "border-zinc-700 bg-zinc-900 text-zinc-400"}`}>
-				{archiveRecording ? `REC ON${archiveRecordingId ? ` (${archiveRecordingId})` : ""}` : "REC OFF"}
 			</div>
 
 			<div className="flex items-center gap-1">
 				<button
-					className={actionPrimary}
+					className={archiveRecording ? actionDanger : actionButton}
 					onClick={async () => {
-						const response = (await controls.startRecording()) as { recordingId?: string } | null;
+						if (archiveRecording) {
+							await controls.stopRecording();
+							setArchiveRecording(false);
+							return;
+						}
+						await controls.startRecording();
 						setArchiveRecording(true);
-						setArchiveRecordingId(response?.recordingId ?? archiveRecordingId);
 					}}
 					type="button"
 				>
-					Start rec (manual)
-				</button>
-				<button
-					className={actionDanger}
-					onClick={async () => {
-						await controls.stopRecording();
-						setArchiveRecording(false);
-						setArchiveRecordingId("");
-					}}
-					type="button"
-				>
-					Stop rec
+					{archiveRecording ? "Recording (manual) ●" : "Not rec (manual) ●"}
 				</button>
 				<button
 					className={actionButton}
@@ -260,7 +258,15 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 
 			{mode === "replay" && (
 				<>
-					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={loadId} onChange={(e) => setLoadId(e.target.value)}>
+					<select
+						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
+						value={loadId}
+						onChange={(e) => {
+							const value = e.target.value;
+							setLoadId(value);
+							if (value) void controls.load(value);
+						}}
+					>
 						<option value="">select recording</option>
 						{recordings.map((id) => (
 							<option key={id} value={id}>
@@ -269,34 +275,27 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						))}
 					</select>
 					<div className="flex items-center gap-1">
-						<input
-							className="w-44 rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-							placeholder="recording id"
-							value={loadId}
-							onChange={(e) => setLoadId(e.target.value)}
-						/>
-						<button
-							className={actionPrimary}
-							onClick={() => {
-								const target = loadId || recordingId || "";
-								if (!target) return;
-								void controls.load(target);
-							}}
-							type="button"
-						>
-							Load
-						</button>
-					</div>
-					<div className="flex items-center gap-1">
 						{playing ? (
-							<button className={actionPrimary} onClick={() => void controls.pause()} type="button">
-								Pause
+							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
+								⏸
 							</button>
 						) : (
-							<button className={actionPrimary} onClick={() => void controls.play()} type="button">
-								Play
+							<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
+								▶
 							</button>
 						)}
+						<button
+							className={iconButton}
+							onClick={() => {
+								void controls.pause();
+								void controls.seek(0);
+							}}
+							type="button"
+							title="Stop"
+						>
+							⏹
+						</button>
+						<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Paused"}</span>
 					</div>
 					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
 						<option value="0.25">0.25x</option>

@@ -7,6 +7,7 @@ import TeamRadios from "@/components/dashboard/TeamRadios";
 import TelemetryLarge from "@/components/dashboard/TelemetryLarge";
 import TrackViolations from "@/components/dashboard/TrackViolations";
 import TyreAvailability from "@/components/dashboard/TyreAvailability";
+import WeatherRadarWidget from "@/components/dashboard/WeatherRadarWidget";
 import type { WidgetId } from "@/stores/useWidgetLayoutStore";
 
 type WidgetDefinition = {
@@ -42,5 +43,9 @@ export const widgetRegistry: Record<WidgetId, WidgetDefinition> = {
 	tyres: {
 		title: "Tyre Sets",
 		component: () => <TyreAvailability />,
+	},
+	"weather-radar": {
+		title: "Weather Radar",
+		component: () => <WeatherRadarWidget />,
 	},
 };

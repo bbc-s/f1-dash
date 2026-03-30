@@ -9,17 +9,21 @@ import type {
 	StandingsResponse,
 } from "@/types/standings.type";
 
-const STORAGE_KEY = "standings-calculator-v4";
+const STORAGE_KEY = "standings-calculator-v5";
 const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;
 
-type RacePredictions = Record<string, string[]>;
+type RaceOrderDraft = Record<string, string[]>;
+type AppliedSimulation = {
+	race: string;
+	order: string[];
+} | null;
 
-function loadPredictions(): RacePredictions {
+function loadDraft(): RaceOrderDraft {
 	if (typeof window === "undefined") return {};
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return {};
-		return (JSON.parse(raw) as RacePredictions) ?? {};
+		return (JSON.parse(raw) as RaceOrderDraft) ?? {};
 	} catch {
 		return {};
 	}
@@ -54,13 +58,14 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 	const remainingRaces = useMemo(() => rounds.slice(currentRound), [rounds, currentRound]);
 	const raceNames = useMemo(() => remainingRaces.map((r) => r.name).filter(Boolean), [remainingRaces]);
 
-	const [predictions, setPredictions] = useState<RacePredictions>(() => loadPredictions());
+	const [draft, setDraft] = useState<RaceOrderDraft>(() => loadDraft());
 	const [selectedRace, setSelectedRace] = useState<string>(() => raceNames[0] ?? "");
 	const [draggingId, setDraggingId] = useState<string | null>(null);
+	const [appliedSimulation, setAppliedSimulation] = useState<AppliedSimulation>(null);
 
 	useEffect(() => {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(predictions));
-	}, [predictions]);
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+	}, [draft]);
 
 	const activeRace = useMemo(() => {
 		if (raceNames.length === 0) return selectedRace;
@@ -69,40 +74,37 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 
 	const selectedOrder = useMemo(() => {
 		if (!activeRace) return defaultOrder;
-		const stored = predictions[activeRace];
+		const stored = draft[activeRace];
 		if (!stored || stored.length === 0) return defaultOrder;
 		const filtered = stored.filter((id) => Boolean(driversById[id]));
 		for (const id of defaultOrder) {
 			if (!filtered.includes(id)) filtered.push(id);
 		}
 		return filtered;
-	}, [activeRace, predictions, defaultOrder, driversById]);
+	}, [activeRace, draft, defaultOrder, driversById]);
 
-	const driverBonusById = useMemo(() => {
+	const appliedBonusByDriver = useMemo(() => {
+		if (!appliedSimulation) return {} as Record<string, number>;
 		const bonus: Record<string, number> = {};
-		for (const race of raceNames) {
-			const order = predictions[race] ?? defaultOrder;
-			order.forEach((driverId, idx) => {
-				const pts = RACE_POINTS[idx] ?? 0;
-				bonus[driverId] = (bonus[driverId] ?? 0) + pts;
-			});
-		}
+		appliedSimulation.order.forEach((driverId, idx) => {
+			bonus[driverId] = RACE_POINTS[idx] ?? 0;
+		});
 		return bonus;
-	}, [predictions, raceNames, defaultOrder]);
+	}, [appliedSimulation]);
 
 	const simulatedDrivers = useMemo(() => {
 		return [...data.drivers]
 			.map((driver) => ({
 				...driver,
-				simulatedPoints: driver.points + (driverBonusById[driver.driverId] ?? 0),
+				simulatedPoints: driver.points + (appliedBonusByDriver[driver.driverId] ?? 0),
 			}))
 			.sort((a, b) => b.simulatedPoints - a.simulatedPoints || b.wins - a.wins);
-	}, [data.drivers, driverBonusById]);
+	}, [data.drivers, appliedBonusByDriver]);
 
 	const constructorBonusById = useMemo(() => {
 		const nameToId = Object.fromEntries(data.constructors.map((c) => [c.name.toLowerCase(), c.constructorId])) as Record<string, string>;
 		const bonus: Record<string, number> = {};
-		for (const [driverId, points] of Object.entries(driverBonusById)) {
+		for (const [driverId, points] of Object.entries(appliedBonusByDriver)) {
 			const driver = driversById[driverId];
 			if (!driver) continue;
 			const constructorId = nameToId[driver.constructorName.toLowerCase()];
@@ -110,7 +112,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 			bonus[constructorId] = (bonus[constructorId] ?? 0) + points;
 		}
 		return bonus;
-	}, [data.constructors, driverBonusById, driversById]);
+	}, [data.constructors, appliedBonusByDriver, driversById]);
 
 	const simulatedConstructors = useMemo(() => {
 		return [...data.constructors]
@@ -124,7 +126,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 	const onDropToDriver = (targetId: string) => {
 		if (!activeRace || !draggingId) return;
 		const moved = moveItem(selectedOrder, draggingId, targetId);
-		setPredictions((prev) => ({ ...prev, [activeRace]: moved }));
+		setDraft((prev) => ({ ...prev, [activeRace]: moved }));
 		setDraggingId(null);
 	};
 
@@ -134,10 +136,10 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 				<p>
 					Official standings source: <span className="text-zinc-200">{data.source}</span> (season {data.season}, round {data.round})
 				</p>
-				<p>Championship calculator: drag drivers to set predicted finish order per remaining race.</p>
+				<p>Drag drivers for one selected race, then confirm simulation with the button.</p>
 			</div>
 
-			<div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
+			<div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
 				<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 					<div className="mb-3 flex items-center gap-2">
 						<label className="text-xs text-zinc-400">Race</label>
@@ -152,16 +154,33 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 						</select>
 					</div>
 
-					<div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
-						<span>Drag and drop driver order</span>
+					<div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-zinc-300">
 						<button
-							className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-200 hover:border-zinc-500"
-							onClick={() => activeRace && setPredictions((prev) => ({ ...prev, [activeRace]: defaultOrder }))}
+							className="rounded border border-cyan-500 bg-cyan-700/30 px-2 py-1 font-semibold text-cyan-100"
+							onClick={() => activeRace && setAppliedSimulation({ race: activeRace, order: selectedOrder })}
+							type="button"
+						>
+							Confirm race simulation
+						</button>
+						<button
+							className="rounded border border-zinc-700 px-2 py-1"
+							onClick={() => activeRace && setDraft((prev) => ({ ...prev, [activeRace]: defaultOrder }))}
 							type="button"
 						>
 							Reset race order
 						</button>
+						<button
+							className="rounded border border-red-500 bg-red-700/20 px-2 py-1 text-red-100"
+							onClick={() => setAppliedSimulation(null)}
+							type="button"
+						>
+							Clear simulation
+						</button>
 					</div>
+
+					{appliedSimulation?.race && (
+						<p className="mb-2 text-xs text-emerald-300">Applied race: {appliedSimulation.race}</p>
+					)}
 
 					<div className="max-h-[70vh] space-y-1 overflow-auto rounded border border-zinc-800 p-2">
 						{selectedOrder.map((driverId, index) => {
@@ -210,11 +229,11 @@ function DriverTable({ official, simulated }: { official: DriverStanding[]; simu
 				<table className="min-w-full border-collapse text-sm">
 					<thead className="bg-zinc-900 text-zinc-400">
 						<tr>
-							<th className="p-2 text-left">Sim</th>
 							<th className="p-2 text-left">Official</th>
+							<th className="p-2 text-left">Sim</th>
 							<th className="p-2 text-left">Driver</th>
 							<th className="p-2 text-right">Official pts</th>
-							<th className="p-2 text-right">Simulated pts</th>
+							<th className="p-2 text-right">Sim pts</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -222,8 +241,8 @@ function DriverTable({ official, simulated }: { official: DriverStanding[]; simu
 							const officialItem = officialById[item.driverId];
 							return (
 								<tr key={item.driverId} className="border-t border-zinc-900">
-									<td className="p-2">{idx + 1}</td>
 									<td className="p-2">{officialItem?.position ?? "-"}</td>
+									<td className="p-2">{idx + 1}</td>
 									<td className="p-2">{item.givenName} {item.familyName}</td>
 									<td className="p-2 text-right">{item.points.toFixed(0)}</td>
 									<td className="p-2 text-right font-semibold">{item.simulatedPoints.toFixed(0)}</td>
@@ -256,11 +275,11 @@ function ConstructorTable({
 				<table className="min-w-full border-collapse text-sm">
 					<thead className="bg-zinc-900 text-zinc-400">
 						<tr>
-							<th className="p-2 text-left">Sim</th>
 							<th className="p-2 text-left">Official</th>
+							<th className="p-2 text-left">Sim</th>
 							<th className="p-2 text-left">Constructor</th>
 							<th className="p-2 text-right">Official pts</th>
-							<th className="p-2 text-right">Simulated pts</th>
+							<th className="p-2 text-right">Sim pts</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -268,8 +287,8 @@ function ConstructorTable({
 							const officialItem = officialById[item.constructorId];
 							return (
 								<tr key={item.constructorId} className="border-t border-zinc-900">
-									<td className="p-2">{idx + 1}</td>
 									<td className="p-2">{officialItem?.position ?? "-"}</td>
+									<td className="p-2">{idx + 1}</td>
 									<td className="p-2">{item.name}</td>
 									<td className="p-2 text-right">{item.points.toFixed(0)}</td>
 									<td className="p-2 text-right font-semibold">{item.simulatedPoints.toFixed(0)}</td>

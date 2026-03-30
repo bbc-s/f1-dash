@@ -9,7 +9,7 @@ import { useReplaySync } from "@/hooks/useReplaySync";
 import { useStores } from "@/hooks/useStores";
 import { useWidgetLayoutSync } from "@/hooks/useWidgetLayoutSync";
 import { useReplayStore } from "@/stores/useReplayStore";
-import { widgetIds, type WidgetId } from "@/stores/useWidgetLayoutStore";
+import { useWidgetLayoutStore, widgetIds, type WidgetId } from "@/stores/useWidgetLayoutStore";
 import { widgetRegistry } from "@/widgets/registry";
 
 function isWidgetId(value: string): value is WidgetId {
@@ -24,6 +24,7 @@ export default function WidgetPopoutClient({ id }: { id: string }) {
 
 	const stores = useStores();
 	const mode = useReplayStore((state) => state.mode);
+	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const { handleInitial, handleUpdate } = useDataEngine({ ...stores, enabled: mode === "live" });
 	useLiveSyncSocket({ enabled: mode === "live", handleInitial, handleUpdate });
 	useReplaySync(stores);
@@ -52,17 +53,19 @@ export default function WidgetPopoutClient({ id }: { id: string }) {
 
 	return (
 		<div className="h-screen w-screen bg-zinc-950 p-0">
-			<div className="flex items-center justify-end gap-2 border-b border-zinc-800 p-2 text-xs">
-				<span className="text-zinc-400">Zoom</span>
-				<button className="rounded border border-zinc-700 px-2 py-1" onClick={() => setZoom(localZoom - 0.1)} type="button">
-					-
-				</button>
-				<span className="w-14 text-center text-zinc-200">{Math.round(localZoom * 100)}%</span>
-				<button className="rounded border border-zinc-700 px-2 py-1" onClick={() => setZoom(localZoom + 0.1)} type="button">
-					+
-				</button>
-			</div>
-			<div className="h-[calc(100%-45px)] w-full">
+			{!layoutLocked && (
+				<div className="flex items-center justify-end gap-2 border-b border-zinc-800 p-2 text-xs">
+					<span className="text-zinc-400">Zoom</span>
+					<button className="rounded border border-zinc-700 px-2 py-1" onClick={() => setZoom(localZoom - 0.1)} type="button">
+						-
+					</button>
+					<span className="w-14 text-center text-zinc-200">{Math.round(localZoom * 100)}%</span>
+					<button className="rounded border border-zinc-700 px-2 py-1" onClick={() => setZoom(localZoom + 0.1)} type="button">
+						+
+					</button>
+				</div>
+			)}
+			<div className={`${layoutLocked ? "h-full" : "h-[calc(100%-45px)]"} w-full`}>
 				<WidgetFrame
 					id={resolvedId}
 					title={widgetRegistry[resolvedId].title}

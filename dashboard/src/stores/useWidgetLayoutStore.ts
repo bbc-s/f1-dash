@@ -9,6 +9,7 @@ export const widgetIds = [
 	"team-radios",
 	"track-violations",
 	"tyres",
+	"weather-radar",
 ] as const;
 
 export type WidgetId = (typeof widgetIds)[number];
@@ -27,6 +28,7 @@ type WidgetLayoutState = {
 	revision: number;
 	layoutLocked: boolean;
 	snapToGrid: boolean;
+	displaced: Partial<Record<WidgetId, { by: WidgetId; x: number; y: number }>>;
 	order: WidgetId[];
 	config: Record<WidgetId, WidgetConfig>;
 
@@ -56,6 +58,7 @@ const defaultConfigFactory = (): Record<WidgetId, WidgetConfig> => ({
 	"team-radios": { visible: true, zoom: 1, x: 940, y: 500, width: 290, height: 300 },
 	"track-violations": { visible: true, zoom: 1, x: 1240, y: 500, width: 300, height: 300 },
 	tyres: { visible: true, zoom: 1, x: 8, y: 812, width: 1532, height: 260 },
+	"weather-radar": { visible: false, zoom: 1, x: 8, y: 1084, width: 980, height: 420 },
 });
 
 const defaultOrderFactory = (): WidgetId[] => [...widgetIds];
@@ -171,12 +174,91 @@ function mergePersistedConfig(persisted?: Partial<Record<WidgetId, Partial<Widge
 
 function withRevision(
 	state: WidgetLayoutState,
-	payload: Partial<Pick<WidgetLayoutState, "layoutLocked" | "snapToGrid" | "order" | "config">>,
+	payload: Partial<Pick<WidgetLayoutState, "layoutLocked" | "snapToGrid" | "displaced" | "order" | "config">>,
 ): Partial<WidgetLayoutState> {
 	return {
 		...payload,
-		revision: state.revision + 1,
+	revision: state.revision + 1,
 	};
+}
+
+function canPlace(
+	config: Record<WidgetId, WidgetConfig>,
+	order: WidgetId[],
+	id: WidgetId,
+	x: number,
+	y: number,
+): boolean {
+	const candidate = { ...config[id], x, y };
+	for (const otherId of order) {
+		if (otherId === id) continue;
+		const other = config[otherId];
+		if (!other.visible) continue;
+		if (intersects(candidate, other)) return false;
+	}
+	return true;
+}
+
+function resolveDisplacements(
+	currentConfig: Record<WidgetId, WidgetConfig>,
+	baseConfig: Record<WidgetId, WidgetConfig>,
+	displaced: Partial<Record<WidgetId, { by: WidgetId; x: number; y: number }>>,
+	order: WidgetId[],
+	sourceId: WidgetId,
+): { config: Record<WidgetId, WidgetConfig>; displaced: Partial<Record<WidgetId, { by: WidgetId; x: number; y: number }>> } {
+	const next = clampConfig({ ...currentConfig });
+	const nextDisplaced = { ...displaced };
+	const source = next[sourceId];
+	if (!source.visible) return { config: next, displaced: nextDisplaced };
+
+	for (const otherId of order) {
+		if (otherId === sourceId) continue;
+		const other = next[otherId];
+		if (!other.visible) continue;
+
+		if (intersects(source, other)) {
+			if (!nextDisplaced[otherId]) {
+				nextDisplaced[otherId] = {
+					by: sourceId,
+					x: baseConfig[otherId].x,
+					y: baseConfig[otherId].y,
+				};
+			}
+
+			const rightX = snap(source.x + source.width + WIDGET_GAP);
+			const rightY = other.y;
+			const downX = other.x;
+			const downY = snap(source.y + source.height + WIDGET_GAP);
+
+			if (canPlace(next, order, otherId, rightX, rightY)) {
+				next[otherId] = { ...other, x: rightX, y: rightY };
+			} else if (canPlace(next, order, otherId, downX, downY)) {
+				next[otherId] = { ...other, x: downX, y: downY };
+			} else {
+				let tryY = downY;
+				let placed = false;
+				for (let i = 0; i < 8; i += 1) {
+					if (canPlace(next, order, otherId, downX, tryY)) {
+						next[otherId] = { ...other, x: downX, y: tryY };
+						placed = true;
+						break;
+					}
+					tryY = snap(tryY + other.height + WIDGET_GAP);
+				}
+				if (!placed) {
+					next[otherId] = { ...other, x: rightX, y: downY };
+				}
+			}
+		} else if (nextDisplaced[otherId]?.by === sourceId) {
+			const original = nextDisplaced[otherId];
+			if (original && canPlace(next, order, otherId, original.x, original.y)) {
+				next[otherId] = { ...other, x: original.x, y: original.y };
+				delete nextDisplaced[otherId];
+			}
+		}
+	}
+
+	return { config: next, displaced: nextDisplaced };
 }
 
 export const useWidgetLayoutStore = create<WidgetLayoutState>()(
@@ -186,6 +268,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 			revision: 0,
 			layoutLocked: true,
 			snapToGrid: true,
+			displaced: {},
 			order: defaultOrderFactory(),
 			config: defaultConfigFactory(),
 
@@ -226,7 +309,9 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 							height: Math.max(MIN_HEIGHT, applySnap ? snap(height) : height),
 						},
 					};
-					return withRevision(state, { config: resolveOverlapsOnResize(updated, state.order, id) });
+					const resolved = resolveOverlapsOnResize(updated, state.order, id);
+					const withDisplacements = resolveDisplacements(resolved, state.config, state.displaced, state.order, id);
+					return withRevision(state, { config: withDisplacements.config, displaced: withDisplacements.displaced });
 				}),
 
 			setPosition: (id, x, y) =>
@@ -240,11 +325,9 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 							y: Math.max(0, applySnap ? snap(y) : y),
 						},
 					};
-					return withRevision(state, {
-						config: {
-							...resolveOverlapsFromSource(updated, state.order, id),
-						},
-					});
+					const resolved = resolveOverlapsFromSource(updated, state.order, id);
+					const withDisplacements = resolveDisplacements(resolved, state.config, state.displaced, state.order, id);
+					return withRevision(state, { config: withDisplacements.config, displaced: withDisplacements.displaced });
 				}),
 
 			arrangeToGrid: () =>
@@ -289,6 +372,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 						config: defaultConfigFactory(),
 						layoutLocked: true,
 						snapToGrid: true,
+						displaced: {},
 					}),
 				),
 		}),
@@ -302,6 +386,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					revision: p.revision ?? current.revision,
 					layoutLocked: p.layoutLocked ?? current.layoutLocked,
 					snapToGrid: p.snapToGrid ?? current.snapToGrid,
+					displaced: {},
 					order: sanitizeOrder(p.order),
 					config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
 				};

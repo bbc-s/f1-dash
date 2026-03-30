@@ -12,7 +12,6 @@ export default function WidgetBoard() {
 	const config = useWidgetLayoutStore((state) => state.config);
 	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const snapToGrid = useWidgetLayoutStore((state) => state.snapToGrid);
-	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
 	const setSnapToGrid = useWidgetLayoutStore((state) => state.setSnapToGrid);
 	const setVisible = useWidgetLayoutStore((state) => state.setVisible);
 	const arrangeToGrid = useWidgetLayoutStore((state) => state.arrangeToGrid);
@@ -40,39 +39,29 @@ export default function WidgetBoard() {
 
 	return (
 		<div className="flex w-full flex-col gap-3">
+			{!layoutLocked && (
 			<div className="rounded-lg border border-zinc-800 p-2">
 				<div className="mb-2 flex flex-wrap items-center justify-between gap-2">
 					<h2 className="text-sm text-zinc-300">Widgets</h2>
 
 					<div className="flex items-center gap-2">
 						<button
-							className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-amber-500 text-amber-300" : "border-emerald-500 text-emerald-300"}`}
-							onClick={() => setLayoutLocked(!layoutLocked)}
+							className={`rounded border px-2 py-1 text-xs ${snapToGrid ? "border-cyan-500 text-cyan-300" : "border-zinc-700 text-zinc-300"}`}
+							onClick={() => setSnapToGrid(!snapToGrid)}
 							type="button"
 						>
-							{layoutLocked ? "Unlock layout" : "Lock layout"}
+							Snap to grid: {snapToGrid ? "On" : "Off"}
 						</button>
-						{!layoutLocked && (
-							<>
-								<button
-									className={`rounded border px-2 py-1 text-xs ${snapToGrid ? "border-cyan-500 text-cyan-300" : "border-zinc-700 text-zinc-300"}`}
-									onClick={() => setSnapToGrid(!snapToGrid)}
-									type="button"
-								>
-									Snap to grid: {snapToGrid ? "On" : "Off"}
-								</button>
-								<button
-									className="rounded border border-zinc-700 px-2 py-1 text-xs"
-									onClick={arrangeToGrid}
-									type="button"
-								>
-									Arrange to grid
-								</button>
-								<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={resetLayout} type="button">
-									Reset layout
-								</button>
-							</>
-						)}
+						<button
+							className="rounded border border-zinc-700 px-2 py-1 text-xs"
+							onClick={arrangeToGrid}
+							type="button"
+						>
+							Arrange to grid
+						</button>
+						<button className="rounded border border-zinc-700 px-2 py-1 text-xs" onClick={resetLayout} type="button">
+							Reset layout
+						</button>
 					</div>
 				</div>
 
@@ -91,6 +80,7 @@ export default function WidgetBoard() {
 					))}
 				</div>
 			</div>
+			)}
 
 			<div className="relative w-full overflow-auto rounded-lg border border-zinc-800 bg-zinc-950" style={{ height: "75vh" }}>
 				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px` }} data-widget-board-canvas="true">

@@ -135,7 +135,7 @@ export function WeatherMap() {
 	const lon = coords?.lon ?? "-0.1278";
 
 	const windyUrl = useMemo(() => {
-		const zoom = 7;
+		const zoom = 11;
 		return `https://embed.windy.com/embed2.html?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${zoom}&level=surface&overlay=rain&menu=&message=&marker=true&calendar=now`;
 	}, [lat, lon]);
 
@@ -163,9 +163,6 @@ export function WeatherMap() {
 				</select>
 			</div>
 
-			<div className="absolute top-2 right-2 z-20 rounded bg-black/70 px-2 py-1 text-xs text-zinc-300">
-				Numerical weather: F1 feed | Radar: Windy
-			</div>
 		</div>
 	);
 }
