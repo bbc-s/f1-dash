@@ -12,7 +12,6 @@ import DelayTimer from "@/components/DelayTimer";
 import Toggle from "@/components/ui/Toggle";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import Footer from "@/components/Footer";
 import { env } from "@/env";
 
 export default function SettingsPage() {
@@ -137,7 +136,6 @@ export default function SettingsPage() {
 					{env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST && <p>Host storage path: {env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST}</p>}
 				</div>
 
-				<Footer />
 			</div>
-	);
+		);
 }

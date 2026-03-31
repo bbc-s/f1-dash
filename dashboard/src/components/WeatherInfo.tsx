@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 
 import TemperatureComplication from "./complications/Temperature";
 import HumidityComplication from "./complications/Humidity";
@@ -6,33 +6,23 @@ import WindSpeedComplication from "./complications/WindSpeed";
 import RainComplication from "./complications/Rain";
 
 import { useDataStore } from "@/stores/useDataStore";
-import { getTrackStatusMessage } from "@/lib/getTrackStatusMessage";
 
 export default function DataWeatherInfo() {
 	const weather = useDataStore((state) => state.state?.WeatherData);
-	const trackStatus = useDataStore((state) => state.state?.TrackStatus?.Status);
-	const currentTrackStatus = getTrackStatusMessage(trackStatus ? Number.parseInt(trackStatus, 10) : undefined);
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div
-				className="mb-2 flex w-full flex-row justify-between rounded-md px-2 py-1 text-xs text-zinc-500"
-				style={{
-					background: currentTrackStatus
-						? `linear-gradient(90deg, rgba(0,0,0,0) 50%, ${currentTrackStatus.hex}22 78%, ${currentTrackStatus.hex}55 100%)`
-						: undefined,
-				}}
-			>
+			<div className="mb-2 flex w-full flex-row justify-between px-2 py-1 text-xs text-zinc-500">
 				<span>Live weather source: F1 feed (numerical)</span>
 				<span>Numerical weather: F1 feed | Radar: Windy</span>
 			</div>
 			<div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
 				{weather ? (
 					<>
-						<MetricCard label="Track" value={`${Math.round(parseFloat(weather.TrackTemp))}°C`}>
+						<MetricCard label="Track" value={`${Math.round(parseFloat(weather.TrackTemp))} degC`}>
 							<TemperatureComplication value={Math.round(parseFloat(weather.TrackTemp))} label="TRC" />
 						</MetricCard>
-						<MetricCard label="Air" value={`${Math.round(parseFloat(weather.AirTemp))}°C`}>
+						<MetricCard label="Air" value={`${Math.round(parseFloat(weather.AirTemp))} degC`}>
 							<TemperatureComplication value={Math.round(parseFloat(weather.AirTemp))} label="AIR" />
 						</MetricCard>
 						<MetricCard label="Humidity" value={`${Math.round(parseFloat(weather.Humidity))}%`}>

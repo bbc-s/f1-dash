@@ -17,6 +17,7 @@ import { useDataStore } from "@/stores/useDataStore";
 import { useReplayStore } from "@/stores/useReplayStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 import { env } from "@/env";
+import { getTrackStatusMessage } from "@/lib/getTrackStatusMessage";
 
 import Sidebar from "@/components/Sidebar";
 import SidenavButton from "@/components/SidenavButton";
@@ -137,10 +138,19 @@ function DesktopStaticBar({
 }) {
 	const pinned = useSidebarStore((state) => state.pinned);
 	const pin = useSidebarStore((state) => state.pin);
+	const trackStatus = useDataStore((state) => state.state?.TrackStatus?.Status);
+	const trackFade = getTrackStatusMessage(trackStatus ? Number.parseInt(trackStatus, 10) : undefined);
 
 	return (
 		<div className="hidden w-full flex-col overflow-hidden rounded-lg border border-zinc-800 p-2 md:flex">
-			<div className="mb-2 flex w-full flex-row justify-between">
+			<div
+				className="mb-2 flex w-full flex-row justify-between rounded-md px-1"
+				style={{
+					background: trackFade
+						? `linear-gradient(90deg, rgba(0,0,0,0) 50%, ${trackFade.hex}22 78%, ${trackFade.hex}55 100%)`
+						: undefined,
+				}}
+			>
 				<div className="flex items-center gap-2">
 					<AnimatePresence>
 						{!pinned && <SidenavButton key="desktop" className="shrink-0" onClick={() => pin()} />}
@@ -162,7 +172,7 @@ function DesktopStaticBar({
 
 function ReplayControls({ controls, compact = false }: { controls: ReturnType<typeof useReplaySync>; compact?: boolean }) {
 	const pathname = usePathname();
-	const hideOnWeatherPage = pathname === "/dashboard/weather";
+	const hideReplayBar = pathname === "/dashboard/weather" || pathname === "/dashboard/standings";
 	const mode = useReplayStore((state) => state.mode);
 	const setMode = useReplayStore((state) => state.setMode);
 	const playing = useReplayStore((state) => state.playing);
@@ -181,6 +191,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const [recordings, setRecordings] = useState<ReplayRecording[]>([]);
 	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveError, setArchiveError] = useState("");
+	const [replayFeedback, setReplayFeedback] = useState("");
 	const [recordToggleBusy, setRecordToggleBusy] = useState(false);
 	const [autoRecordOnData, setAutoRecordOnData] = useState(false);
 	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
@@ -273,7 +284,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
 	const showLayoutLock = pathname !== "/dashboard/standings" && pathname !== "/dashboard/weather";
 
-	if (hideOnWeatherPage) return null;
+	if (hideReplayBar) return null;
 
 	return (
 		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
@@ -339,15 +350,16 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 			{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
 			{mode === "replay" && (
 				<>
-					<select
-						className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-						value={loadId}
-						onChange={(e) => {
-							const value = e.target.value;
-							setLoadId(value);
-							if (value) void controls.load(value);
-						}}
-					>
+						<select
+							className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
+							value={loadId}
+							onChange={(e) => {
+								const value = e.target.value;
+								setLoadId(value);
+								setReplayFeedback("");
+								if (value) void controls.load(value);
+							}}
+						>
 						<option value="">select recording</option>
 						{recordings.map((recording) => (
 							<option key={recording.id} value={recording.id}>
@@ -355,19 +367,41 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 							</option>
 						))}
 					</select>
-					<button
-						className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700"
-						disabled={!loadId}
-						onClick={async () => {
-							if (!loadId) return;
-							await controls.deleteRecording(loadId);
-							setLoadId("");
-							void loadRecordings();
-						}}
-						type="button"
-					>
-						Delete
-					</button>
+						<button
+							className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700"
+							disabled={!loadId}
+							onClick={async () => {
+								if (!loadId) return;
+								try {
+									if (!env.NEXT_PUBLIC_REPLAY_URL) {
+										setReplayFeedback("Delete failed: replay API unavailable");
+										return;
+									}
+									const response = await fetch(
+										`${env.NEXT_PUBLIC_REPLAY_URL}/api/archive/recordings/${encodeURIComponent(loadId)}/delete`,
+										{
+											method: "POST",
+											headers: { "content-type": "application/json" },
+											body: "{}",
+										},
+									);
+									const body = (await response.json().catch(() => null)) as { error?: string } | null;
+									if (!response.ok) {
+										setReplayFeedback(`Delete failed: ${body?.error ?? response.statusText}`);
+										return;
+									}
+									setReplayFeedback("Recording deleted");
+									setLoadId("");
+									await loadRecordings();
+								} catch {
+									setReplayFeedback("Delete failed: request error");
+								}
+							}}
+							type="button"
+						>
+							Delete
+						</button>
+						{replayFeedback && <span className="text-xs text-zinc-300">{replayFeedback}</span>}
 					<div className="flex items-center gap-1">
 						{playing ? (
 							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">

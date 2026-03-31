@@ -139,7 +139,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 				<p>Drag drivers for one selected race, then confirm simulation with the button.</p>
 			</div>
 
-				<div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr]">
+				<div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
 				<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 					<div className="mb-3 flex items-center gap-2">
 						<label className="text-xs text-zinc-400">Race</label>
@@ -154,7 +154,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 						</select>
 					</div>
 
-					<div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-zinc-300">
+						<div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1 text-xs whitespace-nowrap text-zinc-300">
 						<button
 							className="rounded border border-cyan-500 bg-cyan-700/30 px-2 py-1 font-semibold text-cyan-100"
 							onClick={() => activeRace && setAppliedSimulation({ race: activeRace, order: selectedOrder })}
@@ -226,12 +226,12 @@ function DriverTable({ official, simulated }: { official: DriverStanding[]; simu
 		<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 			<h2 className="mb-3 text-xl">Drivers Championship</h2>
 			<div className="overflow-x-auto rounded border border-zinc-800">
-				<table className="min-w-full border-collapse text-sm">
+					<table className="min-w-full table-fixed border-collapse text-sm">
 						<thead className="bg-zinc-900 text-zinc-400">
 							<tr>
 								<th className="w-12 p-2 text-left">Official</th>
 								<th className="w-12 p-2 text-left">Sim</th>
-								<th className="w-44 p-2 text-left">Driver</th>
+									<th className="w-32 p-2 text-left">Driver</th>
 								<th className="w-20 p-2 text-right">Official pts</th>
 								<th className="w-24 p-2 text-right">Sim pts</th>
 							</tr>
@@ -243,7 +243,7 @@ function DriverTable({ official, simulated }: { official: DriverStanding[]; simu
 								<tr key={item.driverId} className="border-t border-zinc-900">
 									<td className="p-2">{officialItem?.position ?? "-"}</td>
 									<td className="p-2">{idx + 1}</td>
-									<td className="p-2">{item.givenName} {item.familyName}</td>
+										<td className="truncate p-2">{item.givenName} {item.familyName}</td>
 									<td className="p-2 text-right">{item.points.toFixed(0)}</td>
 									<td className="p-2 text-right font-semibold">{item.simulatedPoints.toFixed(0)}</td>
 								</tr>
@@ -272,12 +272,12 @@ function ConstructorTable({
 		<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 			<h2 className="mb-3 text-xl">Constructors Championship</h2>
 			<div className="overflow-x-auto rounded border border-zinc-800">
-				<table className="min-w-full border-collapse text-sm">
+					<table className="min-w-full table-fixed border-collapse text-sm">
 						<thead className="bg-zinc-900 text-zinc-400">
 							<tr>
 								<th className="w-12 p-2 text-left">Official</th>
 								<th className="w-12 p-2 text-left">Sim</th>
-								<th className="w-36 p-2 text-left">Constructor</th>
+									<th className="w-28 p-2 text-left">Constructor</th>
 								<th className="w-20 p-2 text-right">Official pts</th>
 								<th className="w-24 p-2 text-right">Sim pts</th>
 							</tr>
@@ -289,7 +289,7 @@ function ConstructorTable({
 								<tr key={item.constructorId} className="border-t border-zinc-900">
 									<td className="p-2">{officialItem?.position ?? "-"}</td>
 									<td className="p-2">{idx + 1}</td>
-									<td className="p-2">{item.name}</td>
+										<td className="truncate p-2">{item.name}</td>
 									<td className="p-2 text-right">{item.points.toFixed(0)}</td>
 									<td className="p-2 text-right font-semibold">{item.simulatedPoints.toFixed(0)}</td>
 								</tr>
