@@ -77,7 +77,7 @@ const TrackMapDriver = ({ position, driver, timingDriver }: TrackMapDriverProps)
 	const appTimingDriver = useDataStore((state) => state.state?.TimingAppData?.Lines[driver.RacingNumber]);
 	const hasFastest = timingStatsDriver?.PersonalBestLapTime.Position == 1;
 
-	const carData = useDataStore((state) => (state?.carsData ? state.carsData[driver.RacingNumber].Channels : undefined));
+	const carData = useDataStore((state) => state?.carsData?.[driver.RacingNumber]?.Channels);
 
 	const favoriteDriver = useSettingsStore((state) => state.favoriteDrivers.includes(driver.RacingNumber));
 
