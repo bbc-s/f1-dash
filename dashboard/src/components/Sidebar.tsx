@@ -133,24 +133,22 @@ export default function Sidebar({ connected }: Props) {
 
 					<p className="mt-4 p-2 text-sm text-zinc-500">General</p>
 
-					<div className="flex flex-col gap-1">
-						<Item item={{ href: "/dashboard/settings", name: "Settings" }} />
+						<div className="flex flex-col gap-1">
+							<Item item={{ href: "/dashboard/settings", name: "Settings" }} />
 
-						<Item item={{ href: "/schedule", name: "Schedule" }} />
-						<Item target="_blank" item={{ href: "/help", name: "Help" }} />
-						<Item target="_blank" item={{ href: "/", name: "Home" }} />
-					</div>
+							<Item item={{ href: "/schedule", name: "Schedule" }} />
+							<Item item={{ href: "/help", name: "Help" }} />
+							<Item item={{ href: "/", name: "Home" }} />
+						</div>
 
-					<p className="mt-4 p-2 text-sm text-zinc-500">Links</p>
-
-					<div className="flex flex-col gap-1">
-						<Item target="_blank" item={{ href: "https://github.com/slowlydev/f1-dash", name: "Github" }} />
-						<Item target="_blank" item={{ href: "https://discord.gg/unJwu66NuB", name: "Discord" }} />
-						<Item target="_blank" item={{ href: "https://buymeacoffee.com/slowlydev", name: "Buy me a coffee" }} />
-						<Item target="_blank" item={{ href: "https://github.com/sponsors/slowlydev", name: "Sponsor me" }} />
-					</div>
-				</nav>
-			</motion.div>
+						<div className="mt-auto p-2 pt-4 text-xs text-zinc-500">
+							Original dev:{" "}
+							<a className="text-blue-500" href="https://slowly.dev" target="_blank">
+								Slowly
+							</a>
+						</div>
+					</nav>
+				</motion.div>
 		</div>
 	);
 }

@@ -20,15 +20,10 @@ export default function TrackInfo() {
 				</p>
 			)}
 
-			{!!currentTrackStatus ? (
-				<div
-					className={clsx("flex h-8 items-center truncate rounded-md px-2", currentTrackStatus.color)}
-					style={{
-						boxShadow: `0 0 60px 10px ${currentTrackStatus.hex}`,
-					}}
-				>
-					<p className="text-lg font-medium">{currentTrackStatus.message}</p>
-				</div>
+				{!!currentTrackStatus ? (
+					<div className={clsx("flex h-8 items-center truncate rounded-md px-2", currentTrackStatus.color)}>
+						<p className="text-lg font-medium">{currentTrackStatus.message}</p>
+					</div>
 			) : (
 				<div className="relative h-8 w-28 animate-pulse overflow-hidden rounded-lg bg-zinc-800" />
 			)}

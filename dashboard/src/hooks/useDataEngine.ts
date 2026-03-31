@@ -132,33 +132,45 @@ export const useDataEngine = ({ enabled = true, updateState, updatePosition, upd
 
 			const posFrame = posBuffer.latest();
 			if (posFrame) updatePosition(posFrame);
-		} else {
-			const delayedTimestamp = Date.now() - delay * 1000;
-			const newStateFrame: Record<string, State[keyof State]> = {};
+			} else {
+				const delayedTimestamp = Date.now() - delay * 1000;
+				const newStateFrame: Record<string, State[keyof State]> = {};
 
-			Object.keys(buffers).forEach((key) => {
-				const buffer = buffers[key as keyof typeof buffers];
-				const delayed = buffer.delayed(delayedTimestamp) as State[keyof State];
+				Object.keys(buffers).forEach((key) => {
+					const buffer = buffers[key as keyof typeof buffers];
+					const delayed = buffer.delayed(delayedTimestamp) as State[keyof State];
+					const latest = buffer.latest() as State[keyof State];
 
-				if (delayed) newStateFrame[key] = delayed;
+					// Keep rendering with latest frame while delayed buffer is still warming up after page reopen.
+					if (delayed) {
+						newStateFrame[key] = delayed;
+					} else if (latest) {
+						newStateFrame[key] = latest;
+					}
 
-				setTimeout(() => buffer.cleanup(delayedTimestamp), 0);
-			});
+					setTimeout(() => buffer.cleanup(delayedTimestamp), 0);
+				});
 
 			updateState(newStateFrame);
 
-			const carFrame = carBuffer.delayed(delayedTimestamp);
-			if (carFrame) {
-				updateCarData(carFrame);
-				setTimeout(() => carBuffer.cleanup(delayedTimestamp), 0);
-			}
+				const carFrame = carBuffer.delayed(delayedTimestamp);
+				if (carFrame) {
+					updateCarData(carFrame);
+					setTimeout(() => carBuffer.cleanup(delayedTimestamp), 0);
+				} else {
+					const latestCar = carBuffer.latest();
+					if (latestCar) updateCarData(latestCar);
+				}
 
-			const posFrame = posBuffer.delayed(delayedTimestamp);
-			if (posFrame) {
-				updatePosition(posFrame);
-				setTimeout(() => posBuffer.cleanup(delayedTimestamp), 0);
+				const posFrame = posBuffer.delayed(delayedTimestamp);
+				if (posFrame) {
+					updatePosition(posFrame);
+					setTimeout(() => posBuffer.cleanup(delayedTimestamp), 0);
+				} else {
+					const latestPos = posBuffer.latest();
+					if (latestPos) updatePosition(latestPos);
+				}
 			}
-		}
 
 		const maxDelay = Math.min(
 			...Object.values(buffers)

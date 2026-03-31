@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import githubIcon from "public/icons/github.svg";
-import coffeeIcon from "public/icons/bmc-logo.svg";
 
 import Footer from "@/components/Footer";
 
@@ -30,23 +29,14 @@ export default function Layout({ children }: Props) {
 					</Link>
 				</div>
 
-				<div className="hidden items-center gap-4 pr-2 sm:flex">
-					<Link
-						className="flex items-center gap-2 transition duration-100 active:scale-95"
-						href="https://www.buymeacoffee.com/slowlydev"
-						target="_blank"
-					>
-						<Image src={coffeeIcon} alt="Buy Me A Coffee" width={20} height={20} />
-						<span>Coffee</span>
-					</Link>
-
-					<Link
-						className="flex items-center gap-2 transition duration-100 active:scale-95"
-						href="https://github.com/slowlydev/f1-dash"
-						target="_blank"
-					>
-						<Image src={githubIcon} alt="GitHub" width={20} height={20} />
-						<span>GitHub</span>
+					<div className="hidden items-center gap-4 pr-2 sm:flex">
+						<Link
+							className="flex items-center gap-2 transition duration-100 active:scale-95"
+							href="https://github.com/bbc-s/f1-dash"
+							target="_blank"
+						>
+							<Image src={githubIcon} alt="GitHub" width={20} height={20} />
+							<span>GitHub</span>
 					</Link>
 				</div>
 			</nav>

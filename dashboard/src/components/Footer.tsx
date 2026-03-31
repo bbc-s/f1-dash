@@ -2,40 +2,22 @@ import Link from "next/link";
 
 export default function Footer() {
 	return (
-		<footer className="my-3 border-t border-zinc-900 pt-2 text-xs text-zinc-500">
-			<div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+		<footer className="my-2 border-t border-zinc-900 pt-1 text-[11px] text-zinc-500">
+			<div className="mb-1 flex flex-wrap gap-x-3 gap-y-1">
 				<p>
-					Made with ♥ by <TextLink website="https://slowly.dev">Slowly</TextLink>.
+					Source: <TextLink website="https://github.com/bbc-s/f1-dash">GitHub</TextLink>
 				</p>
-
 				<p>
-					<TextLink website="https://www.buymeacoffee.com/slowlydev">Buy me a coffee</TextLink> to support me.
-				</p>
-
-				<p>
-					Contribute on <TextLink website="https://github.com/slowlydev/f1-dash">GitHub</TextLink>.
-				</p>
-
-				<p>
-					Check out the Community <TextLink website="https://discord.gg/unJwu66NuB">Discord</TextLink>.
-				</p>
-
-				<p>
-					Get{" "}
 					<Link className="text-blue-500" href="/help">
 						Help
 					</Link>
-					.
 				</p>
-
 				<p>Version: {process.env.version}</p>
 			</div>
-
-				<p className="leading-tight">
-					This project/website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA
-					ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trademarks of Formula One
-					Licensing B.V.
-				</p>
+			<p className="leading-tight opacity-80">
+				Unofficial project, not associated with Formula 1 companies. Formula 1 related marks are trademarks of Formula One
+				Licensing B.V.
+			</p>
 		</footer>
 	);
 }

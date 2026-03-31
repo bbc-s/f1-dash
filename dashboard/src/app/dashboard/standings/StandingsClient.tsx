@@ -139,7 +139,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 				<p>Drag drivers for one selected race, then confirm simulation with the button.</p>
 			</div>
 
-			<div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
+				<div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr]">
 				<section className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 					<div className="mb-3 flex items-center gap-2">
 						<label className="text-xs text-zinc-400">Race</label>
@@ -210,10 +210,10 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 					</div>
 				</section>
 
-				<section className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-					<DriverTable official={data.drivers} simulated={simulatedDrivers} />
-					<ConstructorTable official={data.constructors} simulated={simulatedConstructors} />
-				</section>
+					<section className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
+						<DriverTable official={data.drivers} simulated={simulatedDrivers} />
+						<ConstructorTable official={data.constructors} simulated={simulatedConstructors} />
+					</section>
 			</div>
 		</div>
 	);
@@ -227,15 +227,15 @@ function DriverTable({ official, simulated }: { official: DriverStanding[]; simu
 			<h2 className="mb-3 text-xl">Drivers Championship</h2>
 			<div className="overflow-x-auto rounded border border-zinc-800">
 				<table className="min-w-full border-collapse text-sm">
-					<thead className="bg-zinc-900 text-zinc-400">
-						<tr>
-							<th className="p-2 text-left">Official</th>
-							<th className="p-2 text-left">Sim</th>
-							<th className="p-2 text-left">Driver</th>
-							<th className="p-2 text-right">Official pts</th>
-							<th className="p-2 text-right">Sim pts</th>
-						</tr>
-					</thead>
+						<thead className="bg-zinc-900 text-zinc-400">
+							<tr>
+								<th className="w-12 p-2 text-left">Official</th>
+								<th className="w-12 p-2 text-left">Sim</th>
+								<th className="w-44 p-2 text-left">Driver</th>
+								<th className="w-20 p-2 text-right">Official pts</th>
+								<th className="w-24 p-2 text-right">Sim pts</th>
+							</tr>
+						</thead>
 					<tbody>
 						{simulated.map((item, idx) => {
 							const officialItem = officialById[item.driverId];
@@ -273,15 +273,15 @@ function ConstructorTable({
 			<h2 className="mb-3 text-xl">Constructors Championship</h2>
 			<div className="overflow-x-auto rounded border border-zinc-800">
 				<table className="min-w-full border-collapse text-sm">
-					<thead className="bg-zinc-900 text-zinc-400">
-						<tr>
-							<th className="p-2 text-left">Official</th>
-							<th className="p-2 text-left">Sim</th>
-							<th className="p-2 text-left">Constructor</th>
-							<th className="p-2 text-right">Official pts</th>
-							<th className="p-2 text-right">Sim pts</th>
-						</tr>
-					</thead>
+						<thead className="bg-zinc-900 text-zinc-400">
+							<tr>
+								<th className="w-12 p-2 text-left">Official</th>
+								<th className="w-12 p-2 text-left">Sim</th>
+								<th className="w-36 p-2 text-left">Constructor</th>
+								<th className="w-20 p-2 text-right">Official pts</th>
+								<th className="w-24 p-2 text-right">Sim pts</th>
+							</tr>
+						</thead>
 					<tbody>
 						{simulated.map((item, idx) => {
 							const officialItem = officialById[item.constructorId];

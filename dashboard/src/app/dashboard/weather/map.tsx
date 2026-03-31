@@ -102,25 +102,29 @@ export function WeatherMap() {
 		const run = async () => {
 			const options = await loadRaceOptions();
 			if (cancelled) return;
-			setRaces(options);
-			if (options.length === 0) return;
-			const persisted = typeof window !== "undefined" ? localStorage.getItem(WEATHER_RACE_KEY) : null;
-			if (persisted && options.some((option) => option.name === persisted)) {
-				setSelectedRace(persisted);
-				return;
-			}
+				setRaces(options);
+				if (options.length === 0) return;
+				const persisted = typeof window !== "undefined" ? localStorage.getItem(WEATHER_RACE_KEY) : null;
 
-			const preferred =
+				const preferred =
 					options.find((option) => {
 						const name = normalizeName(option.name);
 						const country = normalizeName(option.country);
 						return (
 							(meetingName !== "" && (name.includes(meetingName) || meetingName.includes(name))) ||
 							(meetingCountry !== "" && country === meetingCountry)
-					);
-				}) ?? options[0];
-			setSelectedRace(preferred.name);
-		};
+						);
+					}) ?? null;
+				if (preferred) {
+					setSelectedRace(preferred.name);
+					return;
+				}
+				if (persisted && options.some((option) => option.name === persisted)) {
+					setSelectedRace(persisted);
+					return;
+				}
+				setSelectedRace(options[0].name);
+			};
 		void run();
 		return () => {
 			cancelled = true;
@@ -159,7 +163,7 @@ export function WeatherMap() {
 	const lon = coords?.lon ?? meetingCoords?.lon ?? "136.541";
 
 	const windyUrl = useMemo(() => {
-		const zoom = 13;
+		const zoom = 14;
 		return `https://embed.windy.com/embed2.html?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${zoom}&level=surface&overlay=rain&menu=&message=&marker=true&calendar=now`;
 	}, [lat, lon]);
 

@@ -40,11 +40,25 @@ const countryCodeMap: Record<string, string> = {
 	Qatar: "qat",
 	Singapore: "sgp",
 	"United Arab Emirates": "uae",
+	UAE: "uae",
 	"United States": "usa",
+	USA: "usa",
+	"Great Britain (UK)": "gbr",
+	UK: "gbr",
 };
 
+function resolveCountryCode(countryName: string, roundName: string): string | undefined {
+	const direct = countryCodeMap[countryName];
+	if (direct) return direct;
+	const normalizedRace = roundName.toLowerCase();
+	if (normalizedRace.includes("sao paulo") || normalizedRace.includes("brazil")) return "bra";
+	if (normalizedRace.includes("abu dhabi")) return "uae";
+	if (normalizedRace.includes("las vegas") || normalizedRace.includes("united states")) return "usa";
+	return undefined;
+}
+
 export default function Round({ round, nextName }: Props) {
-	const countryCode = countryCodeMap[round.countryName];
+	const countryCode = resolveCountryCode(round.countryName, round.name);
 
 	return (
 		<div className={clsx(round.over && "opacity-50")}>
