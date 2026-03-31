@@ -31,6 +31,13 @@ export default function HelpPage() {
 			<p className="text-zinc-300">
 				Original dev: <a className="text-blue-500" href="https://slowly.dev" target="_blank">Slowly</a>
 			</p>
+
+			<h2 className="my-4 text-2xl">Disclaimer</h2>
+			<p className="text-xs leading-relaxed text-zinc-500">
+				This project/website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA ONE,
+				FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trademarks of Formula One Licensing
+				B.V.
+			</p>
 		</div>
 	);
 }

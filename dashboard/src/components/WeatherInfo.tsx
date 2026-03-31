@@ -6,13 +6,23 @@ import WindSpeedComplication from "./complications/WindSpeed";
 import RainComplication from "./complications/Rain";
 
 import { useDataStore } from "@/stores/useDataStore";
+import { getTrackStatusMessage } from "@/lib/getTrackStatusMessage";
 
 export default function DataWeatherInfo() {
 	const weather = useDataStore((state) => state.state?.WeatherData);
+	const trackStatus = useDataStore((state) => state.state?.TrackStatus?.Status);
+	const currentTrackStatus = getTrackStatusMessage(trackStatus ? Number.parseInt(trackStatus, 10) : undefined);
 
 	return (
 		<div className="flex flex-col gap-1">
-			<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+			<div
+				className="mb-2 flex w-full flex-row justify-between rounded-md px-2 py-1 text-xs text-zinc-500"
+				style={{
+					background: currentTrackStatus
+						? `linear-gradient(90deg, rgba(0,0,0,0) 50%, ${currentTrackStatus.hex}22 78%, ${currentTrackStatus.hex}55 100%)`
+						: undefined,
+				}}
+			>
 				<span>Live weather source: F1 feed (numerical)</span>
 				<span>Numerical weather: F1 feed | Radar: Windy</span>
 			</div>

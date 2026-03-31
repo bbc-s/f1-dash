@@ -146,6 +146,13 @@ export default function Sidebar({ connected }: Props) {
 							<a className="text-blue-500" href="https://slowly.dev" target="_blank">
 								Slowly
 							</a>
+							<div className="mt-2">
+								Source:{" "}
+								<a className="text-blue-500" href="https://github.com/bbc-s/f1-dash" target="_blank">
+									GitHub
+								</a>
+							</div>
+							<div>Version: {process.env.NEXT_PUBLIC_APP_VERSION ?? "4.0.14"}</div>
 						</div>
 					</nav>
 				</motion.div>

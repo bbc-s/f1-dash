@@ -4,8 +4,6 @@ import Link from "next/link";
 
 import githubIcon from "public/icons/github.svg";
 
-import Footer from "@/components/Footer";
-
 type Props = {
 	children: ReactNode;
 };
@@ -43,9 +41,6 @@ export default function Layout({ children }: Props) {
 
 				<main className="container mx-auto flex min-h-[calc(100vh-3rem)] max-w-(--breakpoint-lg) flex-col px-4">
 					<div className="flex-1">{children}</div>
-					<div className="pt-4">
-						<Footer />
-					</div>
 				</main>
 			</>
 		);

@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 
 import Button from "@/components/ui/Button";
-import ScrollHint from "@/components/ScrollHint";
 
 import icon from "public/tag-logo.svg";
 
@@ -29,7 +28,12 @@ export default function Home() {
 					</Link>
 				</div>
 
-				<ScrollHint />
+			</section>
+
+			<section className="pb-6 text-xs leading-relaxed text-zinc-500">
+				This project/website is unofficial and is not associated in any way with the Formula 1 companies. F1, FORMULA ONE,
+				FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trademarks of Formula One Licensing
+				B.V.
 			</section>
 		</div>
 	);

@@ -23,7 +23,6 @@ import SidenavButton from "@/components/SidenavButton";
 import SessionInfo from "@/components/SessionInfo";
 import WeatherInfo from "@/components/WeatherInfo";
 import TrackInfo from "@/components/TrackInfo";
-import TrackStatusFadeOverlay from "@/components/TrackStatusFadeOverlay";
 import DelayInput from "@/components/DelayInput";
 import DelayTimer from "@/components/DelayTimer";
 import ConnectionStatus from "@/components/ConnectionStatus";
@@ -58,7 +57,6 @@ export default function DashboardLayout({ children }: Props) {
 
 	return (
 		<div className="flex h-screen w-full md:pt-2 md:pr-2 md:pb-2">
-			<TrackStatusFadeOverlay />
 			<Sidebar key="sidebar" connected={connected} />
 
 			<motion.div layout="size" className="flex h-full w-full flex-1 flex-col md:gap-2">
@@ -164,6 +162,7 @@ function DesktopStaticBar({
 
 function ReplayControls({ controls, compact = false }: { controls: ReturnType<typeof useReplaySync>; compact?: boolean }) {
 	const pathname = usePathname();
+	const hideOnWeatherPage = pathname === "/dashboard/weather";
 	const mode = useReplayStore((state) => state.mode);
 	const setMode = useReplayStore((state) => state.setMode);
 	const playing = useReplayStore((state) => state.playing);
@@ -273,6 +272,8 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const actionPrimary = "cursor-pointer rounded border border-cyan-400 bg-cyan-700/35 px-2 py-1 text-xs font-semibold text-cyan-100 shadow-sm hover:bg-cyan-700/50";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
 	const showLayoutLock = pathname !== "/dashboard/standings" && pathname !== "/dashboard/weather";
+
+	if (hideOnWeatherPage) return null;
 
 	return (
 		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
