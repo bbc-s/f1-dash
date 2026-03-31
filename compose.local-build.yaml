@@ -5,6 +5,8 @@ services:
       dockerfile: dockerfile
       target: api
     image: f1-dash-local-api:4.0.14
+    ports:
+      - 127.0.0.1:${API_PORT:-4010}:80
 
   realtime:
     build:
@@ -45,7 +47,7 @@ services:
       - 127.0.0.1:${WEB_PORT:-3000}:3000
     environment:
       - API_URL=http://api:80
-      - NEXT_PUBLIC_LIVE_URL=ws://127.0.0.1:${LIVE_PORT:-4000}
+      - NEXT_PUBLIC_LIVE_URL=http://127.0.0.1:${LIVE_PORT:-4000}
       - NEXT_PUBLIC_REPLAY_URL=http://127.0.0.1:${ARCHIVE_PORT:-4020}
       - NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST=${ARCHIVE_STORAGE_PATH_HOST:-./data/archive}
       - NEXT_PUBLIC_ARCHIVE_AUTO_RECORD=${ARCHIVE_AUTO_RECORD:-false}
