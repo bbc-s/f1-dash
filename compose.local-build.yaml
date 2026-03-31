@@ -16,6 +16,9 @@ services:
     image: f1-dash-local-realtime:4.0.14
     ports:
       - 127.0.0.1:${LIVE_PORT:-4000}:80
+    environment:
+      - ADDRESS=0.0.0.0:80
+      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
 
   archive:
     build:
