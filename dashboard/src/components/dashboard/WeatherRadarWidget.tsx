@@ -21,10 +21,7 @@ export default function WeatherRadarWidget() {
 	const [samples, setSamples] = useState<WeatherSample[]>([]);
 
 	useEffect(() => {
-		if (mode !== "replay") {
-			setSamples([]);
-			return;
-		}
+		if (mode !== "replay") return;
 		if (!weather) return;
 		const sample: WeatherSample = {
 			cursorMs,
@@ -33,6 +30,7 @@ export default function WeatherRadarWidget() {
 			humidity: Number.parseFloat(weather.Humidity || "0"),
 			rain: weather.Rainfall === "1" ? 100 : 0,
 		};
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setSamples((prev) => {
 			const filtered = prev.filter((entry) => Math.abs(entry.cursorMs - sample.cursorMs) > 500);
 			const next = [...filtered, sample].sort((a, b) => a.cursorMs - b.cursorMs);

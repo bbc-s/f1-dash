@@ -177,8 +177,9 @@ export default function Map({ filter }: Props) {
 
 			const rotatedFinishLine = rotate(mapJson.x[0], mapJson.y[0], fixedRotation, centerX, centerY);
 
-			const dx = rotatedPoints[3].x - rotatedPoints[0].x;
-			const dy = rotatedPoints[3].y - rotatedPoints[0].y;
+				const headingPoint = rotatedPoints[Math.min(3, rotatedPoints.length - 1)] ?? rotatedPoints[0];
+				const dx = headingPoint.x - rotatedPoints[0].x;
+				const dy = headingPoint.y - rotatedPoints[0].y;
 			const startAngle = Math.atan2(dy, dx) * (180 / Math.PI);
 
 			// Store original track points for position calculation

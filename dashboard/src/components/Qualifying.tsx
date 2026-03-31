@@ -31,19 +31,23 @@ export default function Qualifying() {
 	return (
 		<div className="flex gap-4 p-2">
 			<AnimatePresence>
-				{drivers &&
-					qualifyingDrivers
-						.sort(sortQuali)
-						.map((timingDriver) => (
-							<QualifyingDriver
-								key={`qualifying.driver.${timingDriver.RacingNumber}`}
-								driver={drivers[timingDriver.RacingNumber]}
-								timingDriver={timingDriver}
-								appTimingDriver={appDriversTiming?.Lines[timingDriver.RacingNumber]}
-								currentBestName={comparingDriver ? drivers[comparingDriver?.RacingNumber].Tla : undefined}
-								currentBestTime={comparingDriver ? comparingDriver.BestLapTime.Value : undefined}
-							/>
-						))}
+					{drivers &&
+						qualifyingDrivers
+							.sort(sortQuali)
+							.map((timingDriver) => {
+								const driver = drivers[timingDriver.RacingNumber];
+								if (!driver) return null;
+								return (
+								<QualifyingDriver
+									key={`qualifying.driver.${timingDriver.RacingNumber}`}
+									driver={driver}
+									timingDriver={timingDriver}
+									appTimingDriver={appDriversTiming?.Lines[timingDriver.RacingNumber]}
+									currentBestName={comparingDriver ? drivers[comparingDriver.RacingNumber]?.Tla : undefined}
+									currentBestTime={comparingDriver ? comparingDriver.BestLapTime.Value : undefined}
+								/>
+								);
+							})}
 
 				{qualifyingDrivers.length < 1 && (
 					<>

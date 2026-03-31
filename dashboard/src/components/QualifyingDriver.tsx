@@ -30,11 +30,11 @@ export default function DriverQuali({
 		currentStint?.Compound?.toLowerCase() ?? "",
 	);
 
-	const currentTime = timingDriver.Sectors[2].Value
+	const currentTime = timingDriver.Sectors?.[2]?.Value
 		? timingDriver.Sectors[2].Value
-		: timingDriver.Sectors[1].Value
+		: timingDriver.Sectors?.[1]?.Value
 			? timingDriver.Sectors[1].Value
-			: timingDriver.Sectors[0].Value
+			: timingDriver.Sectors?.[0]?.Value
 				? timingDriver.Sectors[0].Value
 				: "-- --";
 

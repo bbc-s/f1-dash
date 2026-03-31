@@ -70,7 +70,9 @@ export const useDataEngine = ({ enabled = true, updateState, updatePosition, upd
 
 		if (carZ) {
 			const carData = inflate<CarData>(carZ);
-			updateCarData(carData.Entries[0].Cars);
+			if (carData.Entries.length > 0) {
+				updateCarData(carData.Entries[0].Cars);
+			}
 
 			for (const entry of carData.Entries) {
 				carBuffer.pushTimed(entry.Cars, utcToLocalMs(entry.Utc));
@@ -79,7 +81,9 @@ export const useDataEngine = ({ enabled = true, updateState, updatePosition, upd
 
 		if (posZ) {
 			const position = inflate<Position>(posZ);
-			updatePosition(position.Position[0].Entries);
+			if (position.Position.length > 0) {
+				updatePosition(position.Position[0].Entries);
+			}
 
 			for (const entry of position.Position) {
 				posBuffer.pushTimed(entry.Entries, utcToLocalMs(entry.Timestamp));

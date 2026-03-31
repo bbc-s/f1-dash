@@ -8,15 +8,18 @@ type Props = {
 };
 
 export default function DriverGap({ timingDriver, sessionPart }: Props) {
+	const statsIndex = sessionPart ? sessionPart - 1 : 0;
+	const stats = timingDriver.Stats?.[statsIndex];
+
 	const gapToLeader =
 		timingDriver.GapToLeader ??
-		(timingDriver.Stats ? timingDriver.Stats[sessionPart ? sessionPart - 1 : 0].TimeDiffToFastest : undefined) ??
+		stats?.TimeDiffToFastest ??
 		timingDriver.TimeDiffToFastest ??
 		"";
 
 	const gapToFront =
 		timingDriver.IntervalToPositionAhead?.Value ??
-		(timingDriver.Stats ? timingDriver.Stats[sessionPart ? sessionPart - 1 : 0].TimeDifftoPositionAhead : undefined) ??
+		stats?.TimeDifftoPositionAhead ??
 		timingDriver.TimeDiffToPositionAhead ??
 		"";
 
