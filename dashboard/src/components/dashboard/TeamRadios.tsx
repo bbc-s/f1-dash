@@ -11,30 +11,36 @@ export default function TeamRadios() {
 	const drivers = useDataStore((state) => state.state?.DriverList);
 	const teamRadios = useDataStore((state) => state.state?.TeamRadio);
 	const sessionPath = useDataStore((state) => state.state?.SessionInfo?.Path);
+	const sessionLoaded = useDataStore((state) => Boolean(state.state?.SessionInfo));
 
 	const gmtOffset = useDataStore((state) => state.state?.SessionInfo?.GmtOffset);
 
 	const basePath = `https://livetiming.formula1.com/static/${sessionPath}`;
+	const captures = teamRadios?.Captures ?? [];
 
 	// TODO add notice that we only show 20
 
 	return (
 		<ul className="flex flex-col gap-2">
-			{!teamRadios && new Array(6).fill("").map((_, index) => <SkeletonMessage key={`radio.loading.${index}`} />)}
+			{!sessionLoaded && new Array(6).fill("").map((_, index) => <SkeletonMessage key={`radio.loading.${index}`} />)}
 
-			{teamRadios && gmtOffset && drivers && teamRadios.Captures && (
+			{sessionLoaded && captures.length === 0 && <li className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-sm text-zinc-400">No team radios available for this session/feed yet.</li>}
+
+			{captures.length > 0 && gmtOffset && drivers && (
 				<AnimatePresence>
-					{teamRadios.Captures.sort(sortUtc)
-						.slice(0, 20)
-						.map((teamRadio, i) => (
-							<RadioMessage
-								key={`radio.${i}`}
-								driver={drivers[teamRadio.RacingNumber]}
-								capture={teamRadio}
-								basePath={basePath}
-								gmtOffset={gmtOffset}
-							/>
-						))}
+					{captures
+						.slice()
+						.sort(sortUtc)
+							.slice(0, 20)
+							.map((teamRadio, i) => (
+								<RadioMessage
+									key={`radio.${i}`}
+									driver={drivers[teamRadio.RacingNumber]}
+									capture={teamRadio}
+									basePath={basePath}
+									gmtOffset={gmtOffset}
+								/>
+							))}
 				</AnimatePresence>
 			)}
 		</ul>

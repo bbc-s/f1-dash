@@ -14,7 +14,7 @@ import PlayControls from "@/components/ui/PlayControls";
 import Progress from "@/components/ui/Progress";
 
 type Props = {
-	driver: Driver;
+	driver: Driver | undefined;
 	capture: RadioCapture;
 	basePath: string;
 	gmtOffset: string;
@@ -71,7 +71,7 @@ export default function RadioMessage({ driver, capture, basePath, gmtOffset }: P
 		});
 	};
 
-	const favoriteDriver = useSettingsStore((state) => state.favoriteDrivers.includes(driver.RacingNumber));
+	const favoriteDriver = useSettingsStore((state) => (driver ? state.favoriteDrivers.includes(driver.RacingNumber) : false));
 
 	const localTime = utc(capture.Utc).local().format("HH:mm:ss");
 	const trackTime = utc(toTrackTime(capture.Utc, gmtOffset)).format("HH:mm");
@@ -84,14 +84,14 @@ export default function RadioMessage({ driver, capture, basePath, gmtOffset }: P
 		>
 			<div className="flex items-center gap-1 text-sm leading-none text-zinc-500">
 				<time dateTime={localTime}>{localTime}</time>
-				{"·"}
+				{"|"}
 				<time className="text-zinc-700" dateTime={trackTime}>
 					{trackTime}
 				</time>
 			</div>
 
 			<div className="flex items-center gap-1">
-				<DriverTag className="!w-fit" teamColor={driver.TeamColour} short={driver.Tla} />
+				<DriverTag className="!w-fit" teamColor={driver?.TeamColour ?? "999999"} short={driver?.Tla ?? capture.RacingNumber} />
 
 				<PlayControls playing={playing} onClick={togglePlayback} />
 				<Progress duration={duration} progress={progress} />

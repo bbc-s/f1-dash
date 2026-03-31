@@ -58,7 +58,7 @@ export default function WidgetBoard() {
 	}
 
 	return (
-		<div className="flex w-full flex-col gap-3">
+		<div className="flex h-full min-h-0 w-full flex-col gap-3">
 			{!layoutLocked && (
 				<div className="rounded-lg border border-zinc-800 p-2">
 					<div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -192,8 +192,8 @@ export default function WidgetBoard() {
 				</div>
 			)}
 
-			<div className="relative w-full overflow-auto rounded-lg border border-zinc-800 bg-zinc-950" style={{ height: "75vh" }}>
-				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px` }} data-widget-board-canvas="true">
+			<div className="relative h-full min-h-0 w-full overflow-auto rounded-lg border border-zinc-800 bg-zinc-950">
+				<div className="relative min-w-[1600px]" style={{ height: `${boardHeight}px`, minHeight: "100%" }} data-widget-board-canvas="true">
 					{visibleWidgets.map((id) => {
 						const Widget = widgetRegistry[id].component;
 						return (

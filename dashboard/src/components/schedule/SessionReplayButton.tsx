@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { env } from "@/env";
-
 const pendingReplayKey = "f1dash-pending-replay-id-v1";
 let recordingsCache: string[] | null = null;
 let recordingsPromise: Promise<string[]> | null = null;
@@ -13,7 +11,7 @@ async function loadRecordings(): Promise<string[]> {
 	if (recordingsCache) return recordingsCache;
 	if (!recordingsPromise) {
 		recordingsPromise = (async () => {
-			const response = await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}/api/archive/recordings`, { cache: "no-store" });
+			const response = await fetch("/api/archive-proxy/archive/recordings", { cache: "no-store" });
 			if (!response.ok) return [];
 			const payload = (await response.json()) as { recordings?: string[] };
 			recordingsCache = (payload.recordings ?? []).slice().reverse();
@@ -42,11 +40,6 @@ export default function SessionReplayButton({ raceName, sessionName }: { raceNam
 
 	useEffect(() => {
 		if (checked) return;
-		if (!env.NEXT_PUBLIC_REPLAY_URL) {
-			setChecked(true);
-			setMatchId(null);
-			return;
-		}
 		void (async () => {
 			try {
 				const recordings = await loadRecordings();

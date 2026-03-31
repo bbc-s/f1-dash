@@ -117,7 +117,7 @@ export default function Map({ filter }: Props) {
 	const trackStatus = useDataStore((state) => state?.state?.TrackStatus);
 	const timingDrivers = useDataStore((state) => state?.state?.TimingData);
 	const raceControlMessages = useDataStore((state) => state?.state?.RaceControlMessages?.Messages ?? undefined);
-	const circuitKey = useDataStore((state) => state?.state?.SessionInfo?.Meeting.Circuit.Key);
+	const circuitKey = useDataStore((state) => state?.state?.SessionInfo?.Meeting?.Circuit?.Key);
 
 	const [[minX, minY, widthX, widthY], setBounds] = useState<(null | number)[]>([null, null, null, null]);
 	const [[centerX, centerY], setCenter] = useState<(null | number)[]>([null, null]);
@@ -128,13 +128,18 @@ export default function Map({ filter }: Props) {
 	const [rotation, setRotation] = useState<number>(0);
 	const [finishLine, setFinishLine] = useState<null | { x: number; y: number; startAngle: number }>(null);
 	const [originalTrackPoints, setOriginalTrackPoints] = useState<null | { x: number; y: number }[]>(null);
+	const [mapLoadFailed, setMapLoadFailed] = useState(false);
 
-	useEffect(() => {
-		(async () => {
-			if (!circuitKey) return;
-			const mapJson = await fetchMap(circuitKey);
+		useEffect(() => {
+			(async () => {
+				if (!circuitKey) return;
+				setMapLoadFailed(false);
+				const mapJson = await fetchMap(circuitKey);
 
-			if (!mapJson) return;
+				if (!mapJson) {
+					setMapLoadFailed(true);
+					return;
+				}
 
 			const centerX = (Math.max(...mapJson.x) - Math.min(...mapJson.x)) / 2;
 			const centerY = (Math.max(...mapJson.y) - Math.min(...mapJson.y)) / 2;
@@ -209,7 +214,14 @@ export default function Map({ filter }: Props) {
 			.sort(prioritizeColoredSectors);
 	}, [trackStatus, sectors, yellowSectors]);
 
-	if (!points || !minX || !minY || !widthX || !widthY) {
+	if (!points || minX === null || minY === null || widthX === null || widthY === null) {
+		if (mapLoadFailed) {
+			return (
+				<div className="flex h-full min-h-[24rem] w-full items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/30 p-2 text-sm text-zinc-400">
+					Track map data is not available for this session/source.
+				</div>
+			);
+		}
 		return (
 			<div className="h-full w-full p-2" style={{ minHeight: "35rem" }}>
 				<div className="h-full w-full animate-pulse rounded-lg bg-zinc-800" />

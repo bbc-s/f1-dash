@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef } from "react";
 
@@ -48,22 +48,51 @@ function writeLease(lease: Lease) {
 	localStorage.setItem(LEADER_KEY, JSON.stringify(lease));
 }
 
+function proxyPath(path: string) {
+	return `/api/archive-proxy/${path.replace(/^\/api\//, "")}`;
+}
+
+function replayBase(path: string) {
+	const local = proxyPath(path);
+	if (typeof window !== "undefined") return local;
+	if (!env.NEXT_PUBLIC_REPLAY_URL) return local;
+	return `${env.NEXT_PUBLIC_REPLAY_URL}${path}`;
+}
+
 async function postReplay(path: string, body?: unknown) {
-	if (!env.NEXT_PUBLIC_REPLAY_URL) return null;
-	const response = await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}${path}`, {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: body ? JSON.stringify(body) : "{}",
-	});
-	if (!response.ok) return null;
-	return response.json().catch(() => null);
+	const tryUrls = [replayBase(path), env.NEXT_PUBLIC_REPLAY_URL ? `${env.NEXT_PUBLIC_REPLAY_URL}${path}` : null].filter(
+		(value): value is string => Boolean(value),
+	);
+	for (const url of tryUrls) {
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: body ? JSON.stringify(body) : "{}",
+			});
+			if (!response.ok) continue;
+			return response.json().catch(() => null);
+		} catch {
+			// try next url
+		}
+	}
+	return null;
 }
 
 async function getReplay(path: string) {
-	if (!env.NEXT_PUBLIC_REPLAY_URL) return null;
-	const response = await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}${path}`, { cache: "no-store" });
-	if (!response.ok) return null;
-	return response.json();
+	const tryUrls = [replayBase(path), env.NEXT_PUBLIC_REPLAY_URL ? `${env.NEXT_PUBLIC_REPLAY_URL}${path}` : null].filter(
+		(value): value is string => Boolean(value),
+	);
+	for (const url of tryUrls) {
+		try {
+			const response = await fetch(url, { cache: "no-store" });
+			if (!response.ok) continue;
+			return response.json();
+		} catch {
+			// try next url
+		}
+	}
+	return null;
 }
 
 export function useReplaySync(updateFns: {
@@ -112,19 +141,15 @@ export function useReplaySync(updateFns: {
 		};
 
 		const startPolling = () => {
-			if (!env.NEXT_PUBLIC_REPLAY_URL) return;
 			if (pollTimerRef.current !== null) return;
 
 			pollTimerRef.current = window.setInterval(async () => {
 				try {
-					const response = await fetch(`${env.NEXT_PUBLIC_REPLAY_URL}/api/replay/frame`, {
-						cache: "no-store",
-					});
-					if (!response.ok) {
+					const payload = (await getReplay("/api/replay/frame")) as Frame | null;
+					if (!payload) {
 						setConnected(false);
 						return;
 					}
-					const payload = (await response.json()) as Frame;
 					applyFrame(payload);
 
 					channelRef.current?.postMessage({

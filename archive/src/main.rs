@@ -29,7 +29,7 @@ use tokio::{
     net::TcpListener,
     sync::Mutex,
 };
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::{error, info, warn};
 
 use shared::tracing_subscriber;
@@ -896,6 +896,12 @@ async fn cleanup_storage_path(storage_path: PathBuf, retention_days: u64) -> Res
 
 fn cors_layer() -> Result<CorsLayer, Error> {
     let origin = env::var("ORIGIN").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string());
+    if origin.trim() == "*" {
+        return Ok(CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS]));
+    }
+
 
     let origins = origin
         .split(';')
@@ -906,6 +912,8 @@ fn cors_layer() -> Result<CorsLayer, Error> {
         .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS]))
 }
+
+
 
 
 

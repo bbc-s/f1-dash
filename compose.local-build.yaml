@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: dockerfile
       target: api
-    image: f1-dash-local-api:4.0.16
+    image: f1-dash-local-api:4.0.18
     ports:
       - 127.0.0.1:${API_PORT:-4010}:80
 
@@ -13,25 +13,25 @@ services:
       context: .
       dockerfile: dockerfile
       target: realtime
-    image: f1-dash-local-realtime:4.0.16
+    image: f1-dash-local-realtime:4.0.18
     ports:
       - 127.0.0.1:${LIVE_PORT:-4000}:80
     environment:
       - ADDRESS=0.0.0.0:80
-      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+      - ORIGIN=*
 
   archive:
     build:
       context: .
       dockerfile: dockerfile
       target: archive
-    image: f1-dash-local-archive:4.0.16
+    image: f1-dash-local-archive:4.0.18
     ports:
       - 127.0.0.1:${ARCHIVE_PORT:-4020}:80
     environment:
       - RUST_LOG=archive=${RUST_LOG_LEVEL:-info}
       - ADDRESS=0.0.0.0:80
-      - ORIGIN=http://127.0.0.1:${WEB_PORT:-3000};http://localhost:${WEB_PORT:-3000}
+      - ORIGIN=*
       - SOURCE_REALTIME_URL=http://realtime:80
       - ARCHIVE_STORAGE_PATH=/data/archive
       - ARCHIVE_RETENTION_DAYS=${ARCHIVE_RETENTION_DAYS:-14}
@@ -40,21 +40,24 @@ services:
       - ${ARCHIVE_STORAGE_PATH_HOST:-./data/archive}:/data/archive
     depends_on:
       - realtime
+    networks:
+      - f1dash
 
   web:
     build:
       context: ./dashboard
       dockerfile: dockerfile
-    image: f1-dash-local-web:4.0.16
+    image: f1-dash-local-web:4.0.18
     ports:
       - 127.0.0.1:${WEB_PORT:-3000}:3000
     environment:
       - API_URL=http://api:80
       - NEXT_PUBLIC_LIVE_URL=http://127.0.0.1:${LIVE_PORT:-4000}
       - NEXT_PUBLIC_REPLAY_URL=http://127.0.0.1:${ARCHIVE_PORT:-4020}
+      - REPLAY_URL=http://archive:80
       - NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST=${ARCHIVE_STORAGE_PATH_HOST:-./data/archive}
       - NEXT_PUBLIC_ARCHIVE_AUTO_RECORD=${ARCHIVE_AUTO_RECORD:-false}
-      - NEXT_PUBLIC_APP_VERSION=4.0.16
+      - NEXT_PUBLIC_APP_VERSION=4.0.18
     depends_on:
       - api
       - realtime

@@ -3,6 +3,7 @@
 import { utc, duration } from "moment";
 
 import { useDataStore } from "@/stores/useDataStore";
+import { useReplayStore } from "@/stores/useReplayStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 
 import Flag from "@/components/Flag";
@@ -22,6 +23,7 @@ export default function SessionInfo() {
 	const clock = useDataStore((state) => state.state?.ExtrapolatedClock);
 	const session = useDataStore((state) => state.state?.SessionInfo);
 	const timingData = useDataStore((state) => state.state?.TimingData);
+	const mode = useReplayStore((state) => state.mode);
 
 	const delay = useSettingsStore((state) => state.delay);
 
@@ -50,12 +52,14 @@ export default function SessionInfo() {
 					<div className="h-4 w-[250px] animate-pulse rounded-md bg-zinc-800" />
 				)}
 
-				{timeRemaining !== undefined ? (
-					<p className="text-2xl leading-none font-extrabold">{timeRemaining}</p>
-				) : (
-					<div className="mt-1 h-6 w-[150px] animate-pulse rounded-md bg-zinc-800 font-semibold" />
-				)}
+					{mode === "replay" ? (
+						<p className="text-2xl leading-none font-extrabold text-amber-300">WATCHING REPLAY</p>
+					) : timeRemaining !== undefined ? (
+						<p className="text-2xl leading-none font-extrabold">{timeRemaining}</p>
+					) : (
+						<div className="mt-1 h-6 w-[150px] animate-pulse rounded-md bg-zinc-800 font-semibold" />
+					)}
+				</div>
 			</div>
-		</div>
 	);
 }

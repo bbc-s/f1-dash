@@ -46,6 +46,8 @@ type SettingsStore = {
 
 	delayIsPaused: boolean;
 	setDelayIsPaused: (delayIsPaused: boolean) => void;
+	noSpoiler: boolean;
+	setNoSpoiler: (noSpoiler: boolean) => void;
 
 	leaderboardColumns: LeaderboardColumn[];
 	setLeaderboardColumns: (columns: LeaderboardColumn[]) => void;
@@ -104,8 +106,10 @@ export const useSettingsStore = create<SettingsStore>()(
 				showBlueFlagsInRaceControl: false,
 				setShowBlueFlagsInRaceControl: (showBlueFlagsInRaceControl: boolean) => set({ showBlueFlagsInRaceControl }),
 
-				delayIsPaused: true,
-				setDelayIsPaused: (delayIsPaused: boolean) => set({ delayIsPaused }),
+					delayIsPaused: true,
+					setDelayIsPaused: (delayIsPaused: boolean) => set({ delayIsPaused }),
+					noSpoiler: false,
+					setNoSpoiler: (noSpoiler: boolean) => set({ noSpoiler }),
 
 				leaderboardColumns: leaderboardColumnsDefault,
 				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) =>

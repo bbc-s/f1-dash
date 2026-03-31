@@ -1,4 +1,4 @@
-import { connection } from "next/server";
+﻿import { connection } from "next/server";
 
 import Round from "@/components/schedule/Round";
 
@@ -8,13 +8,9 @@ import { env } from "@/env";
 
 export const getSchedule = async () => {
 	await connection();
-
 	try {
-		const scheduleReq = await fetch(`${env.API_URL}/api/schedule`, {
-			cache: "no-store",
-		});
+		const scheduleReq = await fetch(`${env.API_URL}/api/schedule`, { cache: "no-store" });
 		const schedule: RoundType[] = await scheduleReq.json();
-
 		return schedule;
 	} catch (e) {
 		console.error("error fetching schedule", e);

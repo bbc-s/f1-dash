@@ -1,14 +1,20 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 
 import NextRound from "@/components/schedule/NextRound";
 import Schedule from "@/components/schedule/Schedule";
+import DemoReplayQuickButton from "@/components/schedule/DemoReplayQuickButton";
 
 export default async function SchedulePage() {
 	return (
 		<div>
-			<div className="my-4">
-				<h1 className="text-3xl">Up Next</h1>
-				<p className="text-zinc-500">All times are local time</p>
+			<div className="my-4 flex items-start justify-between gap-4">
+				<div>
+					<h1 className="text-3xl">Up Next</h1>
+					<p className="text-zinc-500">All times are local time</p>
+				</div>
+				<div className="pt-1">
+					<DemoReplayQuickButton />
+				</div>
 			</div>
 
 			<Suspense fallback={<NextRoundLoading />}>
@@ -31,7 +37,6 @@ const RoundLoading = () => {
 	return (
 		<div className="flex flex-col gap-1">
 			<div className="h-12 w-full animate-pulse rounded-md bg-zinc-800" />
-
 			<div className="grid grid-cols-3 gap-8 pt-1">
 				{Array.from({ length: 3 }).map((_, i) => (
 					<div key={`day.${i}`} className="grid grid-rows-2 gap-2">
@@ -51,7 +56,6 @@ const NextRoundLoading = () => {
 				<div className="h-1/2 w-3/4 animate-pulse rounded-md bg-zinc-800" />
 				<div className="h-1/2 w-3/4 animate-pulse rounded-md bg-zinc-800" />
 			</div>
-
 			<RoundLoading />
 		</div>
 	);

@@ -15,8 +15,6 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
 import { useDataStore } from "@/stores/useDataStore";
 import { useReplayStore } from "@/stores/useReplayStore";
-import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
-import { env } from "@/env";
 import { getTrackStatusMessage } from "@/lib/getTrackStatusMessage";
 
 import Sidebar from "@/components/Sidebar";
@@ -34,12 +32,21 @@ type Props = {
 
 export default function DashboardLayout({ children }: Props) {
 	const stores = useStores();
+	const pathname = usePathname();
 	const mode = useReplayStore((state) => state.mode);
-	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: mode === "live" });
+	const noSpoiler = useSettingsStore((state) => state.noSpoiler);
+	const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+
+	const spoilerGuardEnabled = mode === "live" && noSpoiler && pathname !== "/dashboard/settings" && pathname !== "/dashboard/weather";
+	const spoilerKey = `${pathname}|${noSpoiler ? "1" : "0"}`;
+	const liveConfirmed = confirmedKey === spoilerKey;
+	const allowLiveData = mode === "live" && (!spoilerGuardEnabled || liveConfirmed);
+
+	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: allowLiveData });
 	const replayConnected = useReplayStore((state) => state.connected);
 
 	const { connected: liveConnected } = useLiveSyncSocket({
-		enabled: mode === "live",
+		enabled: allowLiveData,
 		handleInitial,
 		handleUpdate,
 	});
@@ -48,38 +55,39 @@ export default function DashboardLayout({ children }: Props) {
 	useWidgetLayoutSync();
 
 	const connected = mode === "live" ? liveConnected : replayConnected;
-
 	const delay = useSettingsStore((state) => state.delay);
 	const syncing = mode === "live" && delay > maxDelay;
-
 	useWakeLock();
-
 	const ended = useDataStore(({ state }) => state?.SessionStatus?.Status === "Ends");
 
 	return (
-		<div className="flex h-screen w-full md:pt-2 md:pr-2 md:pb-2">
+		<div className="flex h-screen w-full md:pt-1 md:pr-2 md:pb-2">
 			<Sidebar key="sidebar" connected={connected} />
 
-			<motion.div layout="size" className="flex h-full w-full flex-1 flex-col md:gap-2">
+			<motion.div layout="size" className="flex h-full w-full flex-1 flex-col md:gap-1">
 				<DesktopStaticBar show={!syncing || ended} replayControls={replayControls} />
-				<MobileStaticBar
-					show={!syncing || ended}
-					connected={connected}
-					replayControls={replayControls}
-				/>
+				<MobileStaticBar show={!syncing || ended} connected={connected} replayControls={replayControls} />
 
 				<div className={!syncing || ended ? "no-scrollbar w-full flex-1 overflow-auto md:rounded-lg" : "hidden"}>
 					<MobileDynamicBar />
-					{children}
+					{spoilerGuardEnabled && !liveConfirmed ? (
+						<div className="flex h-full min-h-[70vh] flex-col items-center justify-center gap-3 border-zinc-800 md:rounded-lg md:border">
+							<h1 className="text-center text-3xl font-extrabold">No Spoiler</h1>
+							<p className="text-sm text-zinc-400">Live data is hidden until you confirm.</p>
+							<button
+								className="rounded border border-cyan-500 bg-cyan-700/30 px-3 py-2 text-sm font-semibold text-cyan-100"
+								onClick={() => setConfirmedKey(spoilerKey)}
+								type="button"
+							>
+								Watching live
+							</button>
+						</div>
+					) : (
+						children
+					)}
 				</div>
 
-				<div
-					className={
-						syncing && !ended
-							? "flex h-full flex-1 flex-col items-center justify-center gap-2 border-zinc-800 md:rounded-lg md:border"
-							: "hidden"
-					}
-				>
+				<div className={syncing && !ended ? "flex h-full flex-1 flex-col items-center justify-center gap-2 border-zinc-800 md:rounded-lg md:border" : "hidden"}>
 					<h1 className="my-20 text-center text-5xl font-bold">Syncing...</h1>
 					<p>Please wait for {delay - maxDelay} seconds.</p>
 					<p>Or make your delay smaller.</p>
@@ -102,19 +110,11 @@ function MobileDynamicBar() {
 	);
 }
 
-function MobileStaticBar({
-	show,
-	connected,
-	replayControls,
-}: {
-	show: boolean;
-	connected: boolean;
-	replayControls: ReturnType<typeof useReplaySync>;
-}) {
+function MobileStaticBar({ show, connected, replayControls }: { show: boolean; connected: boolean; replayControls: ReturnType<typeof useReplaySync> }) {
 	const open = useSidebarStore((state) => state.open);
 
 	return (
-		<div className="flex w-full flex-col overflow-hidden border-b border-zinc-800 p-2 md:hidden">
+		<div className="flex w-full flex-col overflow-hidden border-b border-zinc-800 p-1 md:hidden">
 			<div className="mb-1 flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<SidenavButton key="mobile" onClick={() => open()} />
@@ -129,40 +129,29 @@ function MobileStaticBar({
 	);
 }
 
-function DesktopStaticBar({
-	show,
-	replayControls,
-}: {
-	show: boolean;
-	replayControls: ReturnType<typeof useReplaySync>;
-}) {
+function DesktopStaticBar({ show, replayControls }: { show: boolean; replayControls: ReturnType<typeof useReplaySync> }) {
 	const pinned = useSidebarStore((state) => state.pinned);
 	const pin = useSidebarStore((state) => state.pin);
 	const trackStatus = useDataStore((state) => state.state?.TrackStatus?.Status);
 	const trackFade = getTrackStatusMessage(trackStatus ? Number.parseInt(trackStatus, 10) : undefined);
 
 	return (
-		<div className="hidden w-full flex-col overflow-hidden rounded-lg border border-zinc-800 p-2 md:flex">
+		<div className="hidden w-full flex-col overflow-hidden rounded-lg border border-zinc-800 p-1 md:flex">
 			<div
-				className="mb-2 flex w-full flex-row justify-between rounded-md px-1"
+				className="mb-0.5 flex w-full flex-row justify-between rounded-md px-1"
 				style={{
-					background: trackFade
-						? `linear-gradient(90deg, rgba(0,0,0,0) 50%, ${trackFade.hex}22 78%, ${trackFade.hex}55 100%)`
-						: undefined,
+					background: trackFade ? `linear-gradient(90deg, rgba(0,0,0,0) 50%, ${trackFade.hex}22 78%, ${trackFade.hex}55 100%)` : undefined,
 				}}
 			>
 				<div className="flex items-center gap-2">
 					<AnimatePresence>
 						{!pinned && <SidenavButton key="desktop" className="shrink-0" onClick={() => pin()} />}
-
 						<motion.div key="session-info" layout="position">
 							<SessionInfo />
 						</motion.div>
 					</AnimatePresence>
 				</div>
-
 				<div className="hidden md:items-center lg:flex">{show && <WeatherInfo />}</div>
-
 				<div className="flex justify-end">{show && <TrackInfo />}</div>
 			</div>
 			<ReplayControls controls={replayControls} />
@@ -179,8 +168,6 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const speed = useReplayStore((state) => state.speed);
 	const cursorMs = useReplayStore((state) => state.cursorMs);
 	const durationMs = useReplayStore((state) => state.durationMs);
-	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
-	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
 	const sessionInfo = useDataStore((state) => state.state?.SessionInfo);
 	const clockUtc = useDataStore((state) => state.state?.ExtrapolatedClock?.Utc);
 
@@ -189,12 +176,9 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 
 	const [loadId, setLoadId] = useState("");
 	const [recordings, setRecordings] = useState<ReplayRecording[]>([]);
-	const [archiveRecording, setArchiveRecording] = useState(false);
 	const [archiveError, setArchiveError] = useState("");
 	const [replayFeedback, setReplayFeedback] = useState("");
-	const [recordToggleBusy, setRecordToggleBusy] = useState(false);
 	const [autoRecordOnData, setAutoRecordOnData] = useState(false);
-	const autoRecordEnabled = env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD === "true";
 	const lastClockRef = useRef<string | null>(null);
 	const autoStartBusyRef = useRef(false);
 
@@ -205,16 +189,13 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 		const meeting = sessionInfo?.Meeting?.Name?.trim() || "UnknownRace";
 		const session = sessionInfo?.Name?.trim() || "UnknownSession";
 		const stamp = new Date().toISOString().replaceAll(":", "").replaceAll("-", "").replace("T", "-").slice(0, 15);
-		const sanitize = (value: string) => value.replace(/[<>:\"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, " ").trim();
+		const sanitize = (value: string) => value.replace(/[<>:"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, " ").trim();
 		return `${sanitize(meeting)} + ${sanitize(session)} + ${stamp}`;
 	}, [sessionInfo]);
 
 	const refreshArchiveStatus = useCallback(async () => {
-		const status = (await controls.status()) as
-			| { recording?: boolean; storagePath?: string; recordingId?: string | null; autoRecordOnData?: boolean }
-			| null;
+		const status = (await controls.status()) as { recording?: boolean; storagePath?: string; recordingId?: string | null; autoRecordOnData?: boolean } | null;
 		if (!status) return false;
-		setArchiveRecording(Boolean(status.recording));
 		setAutoRecordOnData(Boolean(status.autoRecordOnData));
 		setArchiveError("");
 		return true;
@@ -223,10 +204,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const loadRecordings = useCallback(async () => {
 		const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
 		const raw = res?.recordings ?? [];
-		const next = raw
-			.map((id) => ({ id, label: id }))
-			.sort((a, b) => a.id.localeCompare(b.id))
-			.reverse();
+		const next = raw.map((id) => ({ id, label: id })).sort((a, b) => a.id.localeCompare(b.id)).reverse();
 		setRecordings(next);
 	}, [controls]);
 
@@ -249,7 +227,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	}, [refreshArchiveStatus, controls, loadRecordings]);
 
 	useEffect(() => {
-		if (!autoRecordOnData || archiveRecording || mode !== "live") return;
+		if (!autoRecordOnData || mode !== "live") return;
 		if (!clockUtc) return;
 		if (lastClockRef.current === clockUtc) return;
 		lastClockRef.current = clockUtc;
@@ -264,7 +242,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 				autoStartBusyRef.current = false;
 			}
 		})();
-	}, [autoRecordOnData, archiveRecording, clockUtc, mode, controls, buildRecordingName, refreshArchiveStatus, loadRecordings]);
+	}, [autoRecordOnData, clockUtc, mode, controls, buildRecordingName, refreshArchiveStatus, loadRecordings]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -280,184 +258,45 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	}, [controls, setMode]);
 
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
-	const actionPrimary = "cursor-pointer rounded border border-cyan-400 bg-cyan-700/35 px-2 py-1 text-xs font-semibold text-cyan-100 shadow-sm hover:bg-cyan-700/50";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
-	const showLayoutLock = pathname !== "/dashboard/standings" && pathname !== "/dashboard/weather";
 
 	if (hideReplayBar) return null;
+	if (mode === "live") return null;
 
-	return (
-		<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
-			<div className="flex items-center gap-1">
-				<button className={mode === "live" ? actionPrimary : actionButton} onClick={() => setMode("live")} type="button">
-					Live
-				</button>
-				<button className={mode === "replay" ? actionPrimary : actionButton} onClick={() => setMode("replay")} type="button">
-					Replay
-				</button>
-			</div>
-			<div className="rounded border border-zinc-800 px-2 py-1 text-[11px] text-zinc-400">
-				Mode: <span className={autoRecordOnData || autoRecordEnabled ? "text-amber-300" : "text-zinc-300"}>{autoRecordOnData || autoRecordEnabled ? "AUTO" : "MANUAL"}</span>
-				{" | "}Rec: {archiveRecording ? <span className="text-emerald-300">ON</span> : <span className="text-zinc-500">OFF</span>}
-			</div>
-			<div className="flex items-center gap-1">
-				<button
-					className="cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700"
-					onClick={async () => {
-						try {
-							setRecordToggleBusy(true);
-							if (archiveRecording) {
-								await controls.stopRecording();
-							} else {
-								await controls.startRecording(buildRecordingName());
-							}
-							const ok = await refreshArchiveStatus();
-							await loadRecordings();
-							if (!ok) setArchiveError("recorder status unavailable");
-						} catch {
-							setArchiveError("recording request failed");
-						} finally {
-							setRecordToggleBusy(false);
-						}
-					}}
-					disabled={recordToggleBusy}
-					type="button"
-				>
-					{recordToggleBusy ? (
-						<>Updating…</>
-					) : archiveRecording ? (
-						<>
-							Recording (manual) <span className="text-red-400">●</span>
-						</>
-					) : (
-						<>
-							Not rec (manual) <span className="text-zinc-500">●</span>
-						</>
-					)}
-				</button>
-				<button
-					className={autoRecordOnData ? actionPrimary : actionButton}
-					onClick={async () => {
-						const next = !autoRecordOnData;
-						await controls.setAutoRecord(next);
-						await refreshArchiveStatus();
-					}}
-					type="button"
-				>
-					Auto rec on data: {autoRecordOnData ? "On" : "Off"}
-				</button>
-			</div>
-			{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
-			{mode === "replay" && (
-				<>
-						<select
-							className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs"
-							value={loadId}
-							onChange={(e) => {
-								const value = e.target.value;
-								setLoadId(value);
-								setReplayFeedback("");
-								if (value) void controls.load(value);
-							}}
-						>
+		return (
+			<div className={`flex ${compact ? "flex-col" : "flex-row items-center"} gap-2 border-t border-zinc-800 pt-2`}>
+				<div className="flex items-center gap-1">
+					<button className={actionButton} onClick={() => { if (window.confirm("Switch from replay to live mode?")) setMode("live"); }} type="button">Back to Live</button>
+				</div>
+				{archiveError && <div className="text-xs text-red-300">{archiveError}</div>}
+				{mode === "replay" && (
+					<>
+						<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={loadId} onChange={(e) => { const value = e.target.value; setLoadId(value); setReplayFeedback(""); if (value) void controls.load(value); }}>
 						<option value="">select recording</option>
-						{recordings.map((recording) => (
-							<option key={recording.id} value={recording.id}>
-								{recording.label}
-							</option>
-						))}
+						{recordings.map((recording) => <option key={recording.id} value={recording.id}>{recording.label}</option>)}
 					</select>
-						<button
-							className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700"
-							disabled={!loadId}
-							onClick={async () => {
-								if (!loadId) return;
-								try {
-									if (!env.NEXT_PUBLIC_REPLAY_URL) {
-										setReplayFeedback("Delete failed: replay API unavailable");
-										return;
-									}
-									const response = await fetch(
-										`${env.NEXT_PUBLIC_REPLAY_URL}/api/archive/recordings/${encodeURIComponent(loadId)}/delete`,
-										{
-											method: "POST",
-											headers: { "content-type": "application/json" },
-											body: "{}",
-										},
-									);
-									const body = (await response.json().catch(() => null)) as { error?: string } | null;
-									if (!response.ok) {
-										setReplayFeedback(`Delete failed: ${body?.error ?? response.statusText}`);
-										return;
-									}
-									setReplayFeedback("Recording deleted");
-									setLoadId("");
-									await loadRecordings();
-								} catch {
-									setReplayFeedback("Delete failed: request error");
-								}
-							}}
-							type="button"
-						>
-							Delete
-						</button>
+						<button className="cursor-pointer rounded border border-red-500 bg-zinc-800 px-2 py-1 text-xs text-red-200 shadow-sm hover:bg-zinc-700" disabled={!loadId} onClick={async () => {
+							if (!loadId) return;
+							try {
+								const response = (await controls.deleteRecording(loadId)) as { deleted?: boolean; error?: string } | null;
+								if (!response?.deleted) { setReplayFeedback(`Delete failed: ${response?.error ?? "request error"}`); return; }
+								setReplayFeedback("Recording deleted");
+								setLoadId("");
+								await loadRecordings();
+							} catch { setReplayFeedback("Delete failed: request error"); }
+						}} type="button">Delete</button>
 						{replayFeedback && <span className="text-xs text-zinc-300">{replayFeedback}</span>}
-					<div className="flex items-center gap-1">
-						{playing ? (
-							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">
-								⏸
-							</button>
-						) : (
-							<button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">
-								▶
-							</button>
-						)}
-						<button
-							className={iconButton}
-							onClick={() => {
-								void controls.pause();
-								void controls.seek(0);
-							}}
-							type="button"
-							title="Stop"
-						>
-							⏹
-						</button>
-						<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Stopped"}</span>
-					</div>
-					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}>
-						<option value="0.25">0.25x</option>
-						<option value="0.5">0.5x</option>
-						<option value="1">1x</option>
-						<option value="2">2x</option>
-						<option value="4">4x</option>
-						<option value="8">8x</option>
-					</select>
-					<input
-						type="range"
-						className="w-56"
-						min={0}
-						max={Math.max(durationMs, 1)}
-						value={Math.min(cursorMs, Math.max(durationMs, 1))}
-						onChange={(e) => void controls.seek(Number(e.target.value))}
-					/>
-					<span className="text-xs text-zinc-400">
-						{seconds}s / {totalSeconds}s
-					</span>
+						<div className="flex items-center gap-1">
+							{playing ? <button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">❚❚</button> : <button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">▶</button>}
+							<button className={iconButton} onClick={() => { void controls.pause(); void controls.seek(0); }} type="button" title="Stop">■</button>
+							<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Paused"}</span>
+						</div>
+					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option></select>
+					<input type="range" className="w-56" min={0} max={Math.max(durationMs, 1)} value={Math.min(cursorMs, Math.max(durationMs, 1))} onChange={(e) => void controls.seek(Number(e.target.value))} />
+					<span className="text-xs text-zinc-400">{seconds}s / {totalSeconds}s</span>
 				</>
 			)}
-				{showLayoutLock && (
-					<div className={compact ? "w-full text-right" : "ml-auto"}>
-						<button
-							className={`rounded border px-2 py-1 text-xs ${layoutLocked ? "border-zinc-600 bg-zinc-900 text-zinc-300" : "border-emerald-500 bg-emerald-700/25 text-emerald-200"}`}
-							onClick={() => setLayoutLocked(!layoutLocked)}
-							type="button"
-						>
-							{layoutLocked ? "Unlock layout" : "Lock layout"}
-						</button>
-					</div>
-				)}
-			</div>
-		);
+		</div>
+	);
 }
 

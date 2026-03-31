@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { captureOpenPopouts, type PresetPopout } from "@/lib/widgetPopouts";
 
@@ -24,6 +24,10 @@ export type WidgetConfig = {
 	height: number;
 };
 
+export type WidgetLayoutOptions = {
+	telemetryDrivers: string[];
+};
+
 export type LayoutPreset = {
 	id: string;
 	name: string;
@@ -33,6 +37,7 @@ export type LayoutPreset = {
 	config: Record<WidgetId, WidgetConfig>;
 	snapToGrid: boolean;
 	popouts: PresetPopout[];
+	options: WidgetLayoutOptions;
 };
 
 type WidgetLayoutState = {
@@ -44,6 +49,7 @@ type WidgetLayoutState = {
 	order: WidgetId[];
 	config: Record<WidgetId, WidgetConfig>;
 	presets: LayoutPreset[];
+	options: WidgetLayoutOptions;
 
 	setHydrated: (hydrated: boolean) => void;
 	setLayoutLocked: (locked: boolean) => void;
@@ -52,6 +58,7 @@ type WidgetLayoutState = {
 	setZoom: (id: WidgetId, zoom: number) => void;
 	setSize: (id: WidgetId, width: number, height: number) => void;
 	setPosition: (id: WidgetId, x: number, y: number) => void;
+	setTelemetryDrivers: (drivers: string[]) => void;
 	arrangeToGrid: () => void;
 	resetLayout: () => void;
 
@@ -272,6 +279,14 @@ function mergePersistedConfig(persisted?: Partial<Record<WidgetId, Partial<Widge
 	return merged;
 }
 
+function mergePersistedOptions(options?: Partial<WidgetLayoutOptions>): WidgetLayoutOptions {
+	return {
+		telemetryDrivers: Array.isArray(options?.telemetryDrivers)
+			? options.telemetryDrivers.filter((value): value is string => typeof value === "string")
+			: [],
+	};
+}
+
 function mergePersistedPresets(persisted?: Array<Partial<LayoutPreset>>): LayoutPreset[] {
 	if (!persisted || !Array.isArray(persisted)) return [];
 	return persisted
@@ -282,15 +297,16 @@ function mergePersistedPresets(persisted?: Array<Partial<LayoutPreset>>): Layout
 			createdAt: typeof p.createdAt === "number" ? p.createdAt : Date.now(),
 			updatedAt: typeof p.updatedAt === "number" ? p.updatedAt : Date.now(),
 			order: sanitizeOrder(p.order as WidgetId[] | undefined),
-			config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
+				config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
 				snapToGrid: typeof p.snapToGrid === "boolean" ? p.snapToGrid : true,
 				popouts: Array.isArray(p.popouts) ? (p.popouts as PresetPopout[]) : [],
+				options: mergePersistedOptions(p.options as Partial<WidgetLayoutOptions> | undefined),
 			}));
 }
 
 function withRevision(
 	state: WidgetLayoutState,
-	payload: Partial<Pick<WidgetLayoutState, "layoutLocked" | "snapToGrid" | "displaced" | "order" | "config" | "presets">>,
+	payload: Partial<Pick<WidgetLayoutState, "layoutLocked" | "snapToGrid" | "displaced" | "order" | "config" | "presets" | "options">>,
 ): Partial<WidgetLayoutState> {
 	return {
 		...payload,
@@ -309,6 +325,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 			order: defaultOrderFactory(),
 			config: defaultConfigFactory(),
 			presets: [],
+				options: { telemetryDrivers: [] },
 
 			setHydrated: (hydrated) => set({ hydrated }),
 			setLayoutLocked: (layoutLocked) => set((state) => withRevision(state, { layoutLocked })),
@@ -377,7 +394,17 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					return withRevision(state, { config: resolved.config, displaced: resolved.displaced });
 				}),
 
-			arrangeToGrid: () =>
+			setTelemetryDrivers: (drivers) =>
+					set((state) =>
+						withRevision(state, {
+							options: {
+								...state.options,
+								telemetryDrivers: Array.from(new Set(drivers.map((value) => value.trim()).filter(Boolean))),
+							},
+						}),
+					),
+
+				arrangeToGrid: () =>
 				set((state) => {
 					const updated = { ...state.config };
 					const visible = state.order.filter((id) => updated[id].visible);
@@ -417,6 +444,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					withRevision(state, {
 						order: defaultOrderFactory(),
 						config: defaultConfigFactory(),
+						options: { telemetryDrivers: [] },
 						layoutLocked: false,
 						snapToGrid: true,
 						displaced: {},
@@ -440,6 +468,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 									config: clampConfig({ ...state.config }),
 									snapToGrid: state.snapToGrid,
 									popouts: captureOpenPopouts(),
+									options: { ...state.options },
 								},
 							],
 						}),
@@ -452,12 +481,13 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					const preset = state.presets.find((p) => p.id === id);
 					if (!preset) return state;
 					return withRevision(state, {
-						order: sanitizeOrder(preset.order),
-						config: mergePersistedConfig(preset.config),
-						snapToGrid: preset.snapToGrid,
-						layoutLocked: false,
-						displaced: {},
-					});
+							order: sanitizeOrder(preset.order),
+							config: mergePersistedConfig(preset.config),
+							snapToGrid: preset.snapToGrid,
+							options: mergePersistedOptions(preset.options),
+							layoutLocked: false,
+							displaced: {},
+						});
 				}),
 
 			updatePreset: (id, name) =>
@@ -473,6 +503,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 										config: clampConfig({ ...state.config }),
 										snapToGrid: state.snapToGrid,
 										popouts: captureOpenPopouts(),
+									options: { ...state.options },
 									}
 									: p,
 							),
@@ -496,7 +527,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 				),
 		}),
 		{
-			name: "widget-layout-storage-v5",
+			name: "widget-layout-storage-v6",
 			storage: createJSONStorage(() => localStorage),
 			merge: (persisted, current) => {
 				const p = (persisted as Partial<WidgetLayoutState>) ?? {};
@@ -509,6 +540,7 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 					order: sanitizeOrder(p.order),
 					config: mergePersistedConfig(p.config as Partial<Record<WidgetId, Partial<WidgetConfig>>> | undefined),
 					presets: mergePersistedPresets(p.presets as Array<Partial<LayoutPreset>> | undefined),
+						options: mergePersistedOptions(p.options as Partial<WidgetLayoutOptions> | undefined),
 				};
 			},
 			onRehydrateStorage: () => (state) => {
@@ -517,3 +549,6 @@ export const useWidgetLayoutStore = create<WidgetLayoutState>()(
 		},
 	),
 );
+
+
+

@@ -7,7 +7,7 @@ use axum::{
     routing::get,
 };
 use tokio::{net::TcpListener, sync::broadcast::Sender};
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::services::state_service::StateService;
@@ -49,6 +49,11 @@ pub async fn start(state_service: StateService, tx: Sender<String>) -> Result<()
 
 pub fn cors_layer() -> Result<CorsLayer, Error> {
     let origin = env::var("ORIGIN").unwrap_or_else(|_| "https://f1-dash.com".to_string());
+    if origin.trim() == "*" {
+        return Ok(CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([Method::GET, Method::CONNECT]));
+    }
 
     let origins = origin
         .split(';')
