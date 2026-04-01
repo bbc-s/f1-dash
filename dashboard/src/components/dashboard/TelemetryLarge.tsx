@@ -162,6 +162,7 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 	const speedLabel = speedUnit === "metric" ? "KM/H" : "MPH";
 	const speedMax = speedUnit === "metric" ? 360 : 224;
 	const speedTicks = speedUnit === "metric" ? [0, 60, 120, 180, 240, 300, 360] : [0, 40, 80, 120, 160, 200, 224];
+	const idPrefix = `telemetry-${entry.nr}`;
 	return (
 		<div className="rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_25%_10%,rgba(43,99,199,0.22),rgba(9,12,20,0.98)_65%)] p-2">
 			<div className="mb-1 flex items-start justify-between">
@@ -175,8 +176,12 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 			<div className="grid grid-cols-[1fr_82px] items-stretch gap-2">
 				<div className="rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
 					<svg viewBox="0 0 100 100" className="mx-auto h-auto w-full max-w-[260px] min-w-[170px]">
+						<defs>
+							<path id={`${idPrefix}-throttle-label`} d={arc(50, 50, 23.5, -194, -126)} />
+							<path id={`${idPrefix}-brake-label`} d={arc(50, 50, 23.5, -54, 14)} />
+						</defs>
 						<path d={arc(50, 50, 43.5, -215, 35)} stroke="#1f2940" strokeWidth="7" fill="none" strokeLinecap="butt" />
-						<path d={arc(50, 50, 43.5, -215, -215 + 250 * clamp((speedDisplay / speedMax) * 100) / 100)} stroke="#00a4ff" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 43.5, -215, -215 + 250 * clamp((speedDisplay / speedMax) * 100) / 100)} stroke="#0079d8" strokeWidth="7" fill="none" strokeLinecap="butt" />
 						{Array.from({ length: 26 }, (_, i) => i).map((index) => {
 							const ratio = index / 25;
 							const angle = -215 + 250 * ratio;
@@ -195,18 +200,22 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 							);
 						})}
 
-						<path d={arc(50, 50, 30, -214, -106)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
-						<path d={arc(50, 50, 30, -74, 34)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
-						<path d={arc(50, 50, 30, -214, -214 + 108 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="butt" />
-						<path d={arc(50, 50, 30, -74, -74 + 108 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -214, -100)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -80, 34)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -214, -214 + 114 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -80, -80 + 114 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="butt" />
 
-						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[22px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
-						<text x="50" y="52" textAnchor="middle" className="fill-zinc-300 text-[4px] font-bold">{speedLabel}</text>
-						<text x="50" y="59" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
+						<text x="50" y="45" textAnchor="middle" className="fill-zinc-50 text-[18px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
+						<text x="50" y="52.5" textAnchor="middle" className="fill-zinc-200 text-[4px] font-bold">{speedLabel}</text>
+						<text x="50" y="60.5" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
 
-						<text x="32" y="60" textAnchor="middle" transform="rotate(-68 32 60)" className="fill-zinc-200 text-[4.6px] font-bold tracking-wide">THROTTLE</text>
+						<text className="fill-zinc-200 text-[4.5px] font-bold tracking-wide">
+							<textPath href={`#${idPrefix}-throttle-label`} startOffset="50%" textAnchor="middle">THROTTLE</textPath>
+						</text>
 						<text x="32" y="74.5" textAnchor="middle" className="fill-teal-300 text-[8.5px] font-black tabular-nums">{entry.throttle}%</text>
-						<text x="68" y="60" textAnchor="middle" transform="rotate(68 68 60)" className="fill-zinc-200 text-[4.6px] font-bold tracking-wide">BRAKE</text>
+						<text className="fill-zinc-200 text-[4.5px] font-bold tracking-wide">
+							<textPath href={`#${idPrefix}-brake-label`} startOffset="50%" textAnchor="middle">BRAKE</textPath>
+						</text>
 						<text x="68" y="74.5" textAnchor="middle" className="fill-orange-300 text-[8.5px] font-black tabular-nums">{entry.brake}%</text>
 
 						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
