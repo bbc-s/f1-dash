@@ -45,6 +45,8 @@ function writeLeader(lease: LeaderLease) {
 
 function isLeaderStale(lease: LeaderLease | null) {
 	if (!lease) return true;
+	// Handle clock skew/backward system time jumps.
+	if (lease.ts > now() + LEASE_TIMEOUT_MS) return true;
 	return now() - lease.ts > LEASE_TIMEOUT_MS;
 }
 

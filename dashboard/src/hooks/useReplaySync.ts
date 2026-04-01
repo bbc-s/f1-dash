@@ -175,12 +175,12 @@ export function useReplaySync(updateFns: {
 			stopPolling();
 		};
 
-		const electLeader = () => {
-			const lease = readLease();
-			const stale = !lease || now() - lease.ts > LEASE_TIMEOUT_MS;
-			if (stale || lease?.tabId === tabId) {
-				becomeLeader();
-			} else {
+			const electLeader = () => {
+				const lease = readLease();
+				const stale = !lease || lease.ts > now() + LEASE_TIMEOUT_MS || now() - lease.ts > LEASE_TIMEOUT_MS;
+				if (stale || lease?.tabId === tabId) {
+					becomeLeader();
+				} else {
 				becomeFollower();
 			}
 		};

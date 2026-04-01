@@ -13,6 +13,7 @@ type WeatherSample = {
 	humidity: number;
 	rain: number;
 };
+const MAX_SAMPLES = 180;
 
 export default function WeatherRadarWidget() {
 	const mode = useReplayStore((state) => state.mode);
@@ -31,11 +32,11 @@ export default function WeatherRadarWidget() {
 			rain: weather.Rainfall === "1" ? 100 : 0,
 		};
 		// eslint-disable-next-line react-hooks/set-state-in-effect
-		setSamples((prev) => {
-			const filtered = prev.filter((entry) => Math.abs(entry.cursorMs - sample.cursorMs) > 500);
-			const next = [...filtered, sample].sort((a, b) => a.cursorMs - b.cursorMs);
-			return next.slice(-180);
-		});
+			setSamples((prev) => {
+				const filtered = prev.filter((entry) => Math.abs(entry.cursorMs - sample.cursorMs) > 500);
+				const next = [...filtered, sample].sort((a, b) => a.cursorMs - b.cursorMs);
+				return next.slice(-MAX_SAMPLES);
+			});
 	}, [mode, cursorMs, weather]);
 
 	return (
@@ -53,10 +54,10 @@ function ReplayWeatherTimeline({ samples }: { samples: WeatherSample[] }) {
 		const maxTemp = Math.max(...samples.map((s) => Math.max(s.air, s.track)));
 		const tempRange = Math.max(maxTemp - minTemp, 1);
 
-		const mk = (value: number, index: number) => {
-			const x = (samples[index].cursorMs / maxX) * 100;
-			return `${x},${value}`;
-		};
+			const mk = (value: number, index: number) => {
+				const x = (index / Math.max(MAX_SAMPLES - 1, 1)) * 100;
+				return `${x},${value}`;
+			};
 
 		const air = samples.map((s, i) => mk(90 - ((s.air - minTemp) / tempRange) * 80, i)).join(" ");
 		const track = samples.map((s, i) => mk(90 - ((s.track - minTemp) / tempRange) * 80, i)).join(" ");
