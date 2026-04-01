@@ -27,6 +27,13 @@ export default function WeatherRadarWidget() {
 
 	useEffect(() => {
 		if (mode !== "replay") return;
+		// On seek backward, drop future samples so timeline matches current replay cursor.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setSamples((prev) => prev.filter((entry) => entry.cursorMs <= cursorMs + 500).slice(-MAX_SAMPLES));
+	}, [mode, cursorMs]);
+
+	useEffect(() => {
+		if (mode !== "replay") return;
 		if (!weather) return;
 		const sample: WeatherSample = {
 			cursorMs,
@@ -37,7 +44,7 @@ export default function WeatherRadarWidget() {
 		};
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 			setSamples((prev) => {
-				const filtered = prev.filter((entry) => Math.abs(entry.cursorMs - sample.cursorMs) > 500);
+				const filtered = prev.filter((entry) => Math.abs(entry.cursorMs - sample.cursorMs) > 500 && entry.cursorMs <= cursorMs + 500);
 				const next = [...filtered, sample].sort((a, b) => a.cursorMs - b.cursorMs);
 				return next.slice(-MAX_SAMPLES);
 			});

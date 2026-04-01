@@ -176,7 +176,15 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 				<div className="rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
 					<svg viewBox="0 0 100 100" className="mx-auto h-auto w-full max-w-[260px] min-w-[170px]">
 						<path d={arc(50, 50, 43.5, -215, 35)} stroke="#1f2940" strokeWidth="7" fill="none" strokeLinecap="butt" />
-						<path d={arc(50, 50, 43.5, -215, -215 + 250 * clamp((speedDisplay / speedMax) * 100) / 100)} stroke="#009dff" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 43.5, -215, -215 + 250 * clamp((speedDisplay / speedMax) * 100) / 100)} stroke="#00a4ff" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						{Array.from({ length: 26 }, (_, i) => i).map((index) => {
+							const ratio = index / 25;
+							const angle = -215 + 250 * ratio;
+							const outer = polar(50, 50, angle, 47.5);
+							const major = index % 5 === 0;
+							const inner = polar(50, 50, angle, major ? 41.8 : 44.3);
+							return <line key={`speed.mark.${index}`} x1={outer.x} y1={outer.y} x2={inner.x} y2={inner.y} stroke="#5b6478" strokeWidth={major ? 1 : 0.55} />;
+						})}
 						{speedTicks.map((tick) => {
 							const angle = -215 + (250 * tick) / speedMax;
 							const pos = polar(50, 50, angle, 48);
@@ -192,14 +200,14 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 						<path d={arc(50, 50, 30, -214, -214 + 108 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="butt" />
 						<path d={arc(50, 50, 30, -74, -74 + 108 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="butt" />
 
-						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[16px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
+						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[22px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
 						<text x="50" y="52" textAnchor="middle" className="fill-zinc-300 text-[4px] font-bold">{speedLabel}</text>
 						<text x="50" y="59" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
 
-						<text x="22" y="72" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">THR</text>
-						<text x="22" y="81.5" textAnchor="middle" className="fill-teal-300 text-[11px] font-black tabular-nums">{entry.throttle}%</text>
-						<text x="78" y="72" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">BRK</text>
-						<text x="78" y="81.5" textAnchor="middle" className="fill-orange-300 text-[11px] font-black tabular-nums">{entry.brake}%</text>
+						<text x="32" y="60" textAnchor="middle" transform="rotate(-68 32 60)" className="fill-zinc-200 text-[4.6px] font-bold tracking-wide">THROTTLE</text>
+						<text x="32" y="74.5" textAnchor="middle" className="fill-teal-300 text-[8.5px] font-black tabular-nums">{entry.throttle}%</text>
+						<text x="68" y="60" textAnchor="middle" transform="rotate(68 68 60)" className="fill-zinc-200 text-[4.6px] font-bold tracking-wide">BRAKE</text>
+						<text x="68" y="74.5" textAnchor="middle" className="fill-orange-300 text-[8.5px] font-black tabular-nums">{entry.brake}%</text>
 
 						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
 						<rect x="58" y="66.5" width="1.8" height="3.2" rx="0.5" fill="#0ea5e9" />
