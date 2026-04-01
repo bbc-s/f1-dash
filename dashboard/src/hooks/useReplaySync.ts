@@ -219,6 +219,16 @@ export function useReplaySync(updateFns: {
 		};
 		channelRef.current.addEventListener("message", onMessage as EventListener);
 
+		void (async () => {
+			if (mode !== "replay") return;
+			const rememberedRecordingId = useReplayStore.getState().recordingId;
+			if (rememberedRecordingId) {
+				forceReplaceNextFrameRef.current = true;
+				await postReplay("/api/replay/load", { recording_id: rememberedRecordingId });
+			}
+			await pollOnce();
+		})();
+
 		const leaseTimer = window.setInterval(() => {
 			if (mode !== "replay") {
 				becomeFollower();

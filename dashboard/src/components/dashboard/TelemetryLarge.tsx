@@ -160,6 +160,8 @@ export default function TelemetryLarge() {
 function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial" }) {
 	const speedDisplay = speedUnit === "metric" ? entry.speedKmh : entry.speedMph;
 	const speedLabel = speedUnit === "metric" ? "KM/H" : "MPH";
+	const speedMax = speedUnit === "metric" ? 360 : 224;
+	const speedTicks = speedUnit === "metric" ? [0, 60, 120, 180, 240, 300, 360] : [0, 40, 80, 120, 160, 200, 224];
 	return (
 		<div className="rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_25%_10%,rgba(43,99,199,0.22),rgba(9,12,20,0.98)_65%)] p-2">
 			<div className="mb-1 flex items-start justify-between">
@@ -173,22 +175,31 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 			<div className="grid grid-cols-[1fr_82px] items-stretch gap-2">
 				<div className="rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
 					<svg viewBox="0 0 100 100" className="mx-auto h-auto w-full max-w-[260px] min-w-[170px]">
-						<path d={arc(50, 50, 44, -215, 35)} stroke="#1f2937" strokeWidth="8" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 44, -215, -215 + 250 * clamp((speedDisplay / (speedUnit === "metric" ? 360 : 224)) * 100) / 100)} stroke="#22d3ee" strokeWidth="8" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 43.5, -215, 35)} stroke="#1f2940" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 43.5, -215, -215 + 250 * clamp((speedDisplay / speedMax) * 100) / 100)} stroke="#009dff" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						{speedTicks.map((tick) => {
+							const angle = -215 + (250 * tick) / speedMax;
+							const pos = polar(50, 50, angle, 48);
+							return (
+								<text key={`tick.${tick}`} x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="central" className="fill-zinc-500 text-[3.6px] font-semibold tabular-nums">
+									{tick}
+								</text>
+							);
+						})}
 
-						<path d={arc(50, 50, 30, -214, -96)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -84, 34)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -214, -214 + 118 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -84, -84 + 118 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -214, -106)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -74, 34)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -214, -214 + 108 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="butt" />
+						<path d={arc(50, 50, 30, -74, -74 + 108 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="butt" />
 
 						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[16px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
 						<text x="50" y="52" textAnchor="middle" className="fill-zinc-300 text-[4px] font-bold">{speedLabel}</text>
 						<text x="50" y="59" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
 
-						<text x="16" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">THR</text>
-						<text x="16" y="80" textAnchor="middle" className="fill-teal-300 text-[11px] font-black tabular-nums">{entry.throttle}%</text>
-						<text x="84" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">BRK</text>
-						<text x="84" y="80" textAnchor="middle" className="fill-orange-300 text-[11px] font-black tabular-nums">{entry.brake}%</text>
+						<text x="22" y="72" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">THR</text>
+						<text x="22" y="81.5" textAnchor="middle" className="fill-teal-300 text-[11px] font-black tabular-nums">{entry.throttle}%</text>
+						<text x="78" y="72" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">BRK</text>
+						<text x="78" y="81.5" textAnchor="middle" className="fill-orange-300 text-[11px] font-black tabular-nums">{entry.brake}%</text>
 
 						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
 						<rect x="58" y="66.5" width="1.8" height="3.2" rx="0.5" fill="#0ea5e9" />
@@ -211,9 +222,9 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 
 function StatusTile({ label, value, valueClass }: { label: string; value: string; valueClass: string }) {
 	return (
-		<div className="rounded border border-zinc-800 bg-zinc-900/50 px-1 py-1">
-			<p className="text-[9px] uppercase tracking-wide text-zinc-400">{label}</p>
-			<p className={`text-base leading-tight font-bold tabular-nums ${valueClass}`}>{value}</p>
+		<div className="flex h-full flex-col justify-between rounded border border-zinc-800 bg-zinc-900/50 px-1 py-1">
+			<p className="text-[8px] leading-none uppercase tracking-wide text-zinc-400">{label}</p>
+			<p className={`text-2xl leading-none font-black tabular-nums ${valueClass}`}>{value}</p>
 		</div>
 	);
 }
