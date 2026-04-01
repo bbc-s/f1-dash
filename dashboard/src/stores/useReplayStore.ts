@@ -50,7 +50,7 @@ export const useReplayStore = create<ReplayStore>()(
 		{
 			name: "replay-storage-v1",
 			storage: createJSONStorage(() => localStorage),
-			partialize: (state) => ({ mode: state.mode }),
+			partialize: (state) => ({ mode: state.mode, recordingId: state.recordingId, speed: state.speed }),
 		},
 	),
 );

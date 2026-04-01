@@ -140,27 +140,32 @@ export function useReplaySync(updateFns: {
 			}
 		};
 
+		const pollOnce = async () => {
+			try {
+				const payload = (await getReplay("/api/replay/frame")) as Frame | null;
+				if (!payload) {
+					setConnected(false);
+					return;
+				}
+				applyFrame(payload);
+
+				channelRef.current?.postMessage({
+					type: "frame",
+					leaderId: tabId,
+					ts: now(),
+					payload,
+				} satisfies ChannelMessage);
+			} catch {
+				setConnected(false);
+			}
+		};
+
 		const startPolling = () => {
 			if (pollTimerRef.current !== null) return;
+			void pollOnce();
 
 			pollTimerRef.current = window.setInterval(async () => {
-				try {
-					const payload = (await getReplay("/api/replay/frame")) as Frame | null;
-					if (!payload) {
-						setConnected(false);
-						return;
-					}
-					applyFrame(payload);
-
-					channelRef.current?.postMessage({
-						type: "frame",
-						leaderId: tabId,
-						ts: now(),
-						payload,
-					} satisfies ChannelMessage);
-				} catch {
-					setConnected(false);
-				}
+				await pollOnce();
 			}, 300);
 		};
 

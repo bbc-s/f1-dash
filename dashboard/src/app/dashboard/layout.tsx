@@ -168,6 +168,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const speed = useReplayStore((state) => state.speed);
 	const cursorMs = useReplayStore((state) => state.cursorMs);
 	const durationMs = useReplayStore((state) => state.durationMs);
+	const currentRecordingId = useReplayStore((state) => state.recordingId);
 	const sessionInfo = useDataStore((state) => state.state?.SessionInfo);
 	const clockUtc = useDataStore((state) => state.state?.ExtrapolatedClock?.Utc);
 
@@ -256,6 +257,15 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 			await controls.play();
 		})();
 	}, [controls, setMode]);
+
+	useEffect(() => {
+		if (mode !== "replay") return;
+		if (loadId) return;
+		const candidate = currentRecordingId ?? recordings[0]?.id ?? "";
+		if (!candidate) return;
+		setLoadId(candidate);
+		void controls.load(candidate);
+	}, [mode, loadId, currentRecordingId, recordings, controls]);
 
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
