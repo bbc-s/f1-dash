@@ -14,6 +14,10 @@ type WeatherSample = {
 	rain: number;
 };
 const MAX_SAMPLES = 180;
+const PLOT_X_MIN = 6;
+const PLOT_X_MAX = 98;
+const PLOT_Y_MIN = 10;
+const PLOT_Y_MAX = 92;
 
 export default function WeatherRadarWidget() {
 	const mode = useReplayStore((state) => state.mode);
@@ -55,16 +59,18 @@ function ReplayWeatherTimeline({ samples }: { samples: WeatherSample[] }) {
 		const tempRange = Math.max(maxTemp - minTemp, 1);
 
 			const mk = (value: number, index: number) => {
-				const x = (index / Math.max(MAX_SAMPLES - 1, 1)) * 100;
+				const xRatio = index / Math.max(samples.length - 1, 1);
+				const x = PLOT_X_MIN + xRatio * (PLOT_X_MAX - PLOT_X_MIN);
 				return `${x},${value}`;
 			};
 
-		const air = samples.map((s, i) => mk(90 - ((s.air - minTemp) / tempRange) * 80, i)).join(" ");
-		const track = samples.map((s, i) => mk(90 - ((s.track - minTemp) / tempRange) * 80, i)).join(" ");
-		const hum = samples.map((s, i) => mk(90 - (s.humidity / 100) * 80, i)).join(" ");
-		const rain = samples.map((s, i) => mk(90 - (s.rain / 100) * 80, i)).join(" ");
-		return { air, track, hum, rain, minTemp, maxTemp, maxX };
-	}, [samples]);
+			const mapY = (ratio01: number) => PLOT_Y_MAX - ratio01 * (PLOT_Y_MAX - PLOT_Y_MIN);
+			const air = samples.map((s, i) => mk(mapY((s.air - minTemp) / tempRange), i)).join(" ");
+			const track = samples.map((s, i) => mk(mapY((s.track - minTemp) / tempRange), i)).join(" ");
+			const hum = samples.map((s, i) => mk(mapY(s.humidity / 100), i)).join(" ");
+			const rain = samples.map((s, i) => mk(mapY(s.rain / 100), i)).join(" ");
+			return { air, track, hum, rain, minTemp, maxTemp, maxX };
+		}, [samples]);
 
 	if (samples.length === 0) {
 		return (
