@@ -96,7 +96,7 @@ async function getReplay(path: string) {
 }
 
 export function useReplaySync(updateFns: {
-	updateState: (state: State) => void;
+	updateState: (state: State, options?: { replace?: boolean }) => void;
 	updateCarData: (cars: CarsData | null) => void;
 	updatePosition: (positions: Positions | null) => void;
 }) {
@@ -109,6 +109,9 @@ export function useReplaySync(updateFns: {
 	const leaderRef = useRef(false);
 	const pollTimerRef = useRef<number | null>(null);
 	const lastHeartbeatRef = useRef(0);
+	const lastCursorMsRef = useRef<number | null>(null);
+	const lastRecordingIdRef = useRef<string | null>(null);
+	const forceReplaceNextFrameRef = useRef(true);
 	const updateFnsRef = useRef(updateFns);
 
 	useEffect(() => {
@@ -120,7 +123,14 @@ export function useReplaySync(updateFns: {
 		channelRef.current = new BroadcastChannel(CHANNEL);
 
 		const applyFrame = (frame: Frame) => {
-			updateFnsRef.current.updateState(frame.state ?? ({} as State));
+			const currentCursor = Number.isFinite(frame.cursorMs) ? frame.cursorMs : 0;
+			const previousCursor = lastCursorMsRef.current;
+			const recordingChanged = (frame.recordingId ?? null) !== lastRecordingIdRef.current;
+			const rewinded = previousCursor !== null && currentCursor + 500 < previousCursor;
+			const discontinuity = previousCursor !== null && Math.abs(currentCursor - previousCursor) > 8000;
+			const replaceState = forceReplaceNextFrameRef.current || recordingChanged || rewinded || discontinuity;
+
+			updateFnsRef.current.updateState(frame.state ?? ({} as State), { replace: replaceState });
 			updateFnsRef.current.updateCarData(frame.carsData ?? null);
 			updateFnsRef.current.updatePosition(frame.positions ?? null);
 			setFrameState({
@@ -130,6 +140,9 @@ export function useReplaySync(updateFns: {
 				durationMs: frame.durationMs,
 				recordingId: frame.recordingId ?? null,
 			});
+			forceReplaceNextFrameRef.current = false;
+			lastCursorMsRef.current = currentCursor;
+			lastRecordingIdRef.current = frame.recordingId ?? null;
 			setConnected(true);
 		};
 
@@ -243,9 +256,15 @@ export function useReplaySync(updateFns: {
 	const controls = {
 		play: () => postReplay("/api/replay/play"),
 		pause: () => postReplay("/api/replay/pause"),
-		seek: (positionMs: number) => postReplay("/api/replay/seek", { position_ms: positionMs }),
+		seek: (positionMs: number) => {
+			forceReplaceNextFrameRef.current = true;
+			return postReplay("/api/replay/seek", { position_ms: positionMs });
+		},
 		speed: (value: number) => postReplay("/api/replay/speed", { speed: value }),
-		load: (recordingId: string) => postReplay("/api/replay/load", { recording_id: recordingId }),
+		load: (recordingId: string) => {
+			forceReplaceNextFrameRef.current = true;
+			return postReplay("/api/replay/load", { recording_id: recordingId });
+		},
 		startRecording: (name?: string, streams?: string[]) =>
 			postReplay("/api/archive/start", {
 				name,
