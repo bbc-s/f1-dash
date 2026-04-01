@@ -161,7 +161,7 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 	const speedDisplay = speedUnit === "metric" ? entry.speedKmh : entry.speedMph;
 	const speedLabel = speedUnit === "metric" ? "KM/H" : "MPH";
 	return (
-		<div className="aspect-square rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_25%_10%,rgba(43,99,199,0.22),rgba(9,12,20,0.98)_65%)] p-2">
+		<div className="rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_25%_10%,rgba(43,99,199,0.22),rgba(9,12,20,0.98)_65%)] p-2">
 			<div className="mb-1 flex items-start justify-between">
 				<div>
 					<p className="text-sm font-bold text-zinc-100">{entry.tla}</p>
@@ -170,25 +170,32 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 				<div className="rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
 			</div>
 
-			<div className="grid grid-cols-[1fr_64px] gap-2">
-				<div className="rounded-md border border-zinc-800 bg-zinc-950/30 p-1">
-					<svg viewBox="0 0 100 100" className="h-[130px] w-full">
-						<path d={arc(50, 50, 43, -215, 35)} stroke="#1f2937" strokeWidth="8" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 43, -215, -215 + 250 * clamp((speedDisplay / (speedUnit === "metric" ? 360 : 224)) * 100) / 100)} stroke="#34d399" strokeWidth="8" fill="none" strokeLinecap="round" />
+			<div className="grid grid-cols-[1fr_70px] gap-2">
+				<div className="rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
+					<svg viewBox="0 0 100 100" className="h-[180px] w-full">
+						<path d={arc(50, 50, 44, -215, 35)} stroke="#1f2937" strokeWidth="8" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 44, -215, -215 + 250 * clamp((speedDisplay / (speedUnit === "metric" ? 360 : 224)) * 100) / 100)} stroke="#22d3ee" strokeWidth="8" fill="none" strokeLinecap="round" />
 
-						<path d={arc(50, 50, 31, -210, -90)} stroke="#27272a" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 31, -89, 31)} stroke="#27272a" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 31, -210, -210 + 120 * (entry.throttle / 100))} stroke="#22c55e" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 31, -89, -89 + 120 * (entry.brake / 100))} stroke="#ef4444" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -212, -92)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -88, 32)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -212, -212 + 120 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -88, -88 + 120 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<line x1="50" y1="21" x2="50" y2="79" stroke="#3f4a62" strokeWidth="1.2" />
 
 						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[16px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
 						<text x="50" y="52" textAnchor="middle" className="fill-zinc-300 text-[4px] font-bold">{speedLabel}</text>
 						<text x="50" y="59" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
-						<text x="16" y="72" textAnchor="middle" className="fill-zinc-200 text-[5px] font-bold">THR</text>
-						<text x="16" y="79" textAnchor="middle" className="fill-emerald-300 text-[6px] font-black">{entry.throttle}%</text>
-						<text x="84" y="72" textAnchor="middle" className="fill-zinc-200 text-[5px] font-bold">BRK</text>
-						<text x="84" y="79" textAnchor="middle" className="fill-red-300 text-[6px] font-black">{entry.brake}%</text>
-						<text x="50" y="86" textAnchor="middle" className="fill-zinc-200 text-[6px] font-bold">GEAR {entry.gear <= 0 ? "N" : entry.gear}</text>
+
+						<text x="16" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">THR</text>
+						<text x="16" y="80" textAnchor="middle" className="fill-teal-300 text-[8px] font-black tabular-nums">{entry.throttle}%</text>
+						<text x="84" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">BRK</text>
+						<text x="84" y="80" textAnchor="middle" className="fill-orange-300 text-[8px] font-black tabular-nums">{entry.brake}%</text>
+
+						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
+						<rect x="58" y="66.5" width="1.8" height="3.2" rx="0.5" fill="#0ea5e9" />
+						<rect x="43.2" y="65.7" width={Math.max(1, (entry.battery / 100) * 13)} height="4.6" rx="1" fill="#38bdf8" />
+
+						<text x="50" y="89" textAnchor="middle" className="fill-zinc-200 text-[7px] font-bold">GEAR {entry.gear <= 0 ? "N" : entry.gear}</text>
 					</svg>
 				</div>
 
@@ -197,16 +204,6 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 					<StatusTile label="Deploy" value={`${entry.deploy}%`} valueClass="text-amber-300" />
 					<StatusTile label="Boost" value={`${entry.boost}%`} valueClass="text-violet-300" />
 					<StatusTile label="RPM" value={`${entry.rpmPct}%`} valueClass="text-zinc-100" />
-				</div>
-			</div>
-
-			<div className="mt-1 rounded-md border border-zinc-800 bg-zinc-950/50 p-1">
-				<div className="mb-0.5 flex items-center justify-between text-[9px] uppercase tracking-wide text-zinc-400">
-					<span>Battery</span>
-					<span className="font-bold text-sky-300">{entry.battery}%</span>
-				</div>
-				<div className="h-3 rounded border border-sky-500/40 bg-zinc-900">
-					<div className="h-full rounded bg-gradient-to-r from-sky-500 to-cyan-300" style={{ width: `${entry.battery}%` }} />
 				</div>
 			</div>
 		</div>
