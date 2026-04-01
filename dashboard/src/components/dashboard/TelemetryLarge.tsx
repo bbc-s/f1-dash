@@ -147,13 +147,13 @@ export default function TelemetryLarge() {
 			</div>
 
 			{entries.length === 0 ? (
-				<div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-800"><p className="text-zinc-500">Telemetry unavailable</p></div>
-			) : (
-				<div className={`grid flex-1 gap-2 ${entries.length > 1 ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
-					{entries.map((entry) => <TelemetryCard key={entry.nr} entry={entry} speedUnit={speedUnit} />)}
-				</div>
-			)}
-		</div>
+					<div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-800"><p className="text-zinc-500">Telemetry unavailable</p></div>
+				) : (
+					<div className="grid auto-rows-min grid-cols-[repeat(auto-fill,minmax(300px,1fr))] items-start gap-2">
+						{entries.map((entry) => <TelemetryCard key={entry.nr} entry={entry} speedUnit={speedUnit} />)}
+					</div>
+				)}
+			</div>
 	);
 }
 
@@ -170,26 +170,25 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 				<div className="rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
 			</div>
 
-			<div className="grid grid-cols-[1fr_70px] gap-2">
+			<div className="grid grid-cols-[1fr_82px] items-stretch gap-2">
 				<div className="rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
-					<svg viewBox="0 0 100 100" className="h-[180px] w-full">
+					<svg viewBox="0 0 100 100" className="mx-auto h-auto w-full max-w-[260px] min-w-[170px]">
 						<path d={arc(50, 50, 44, -215, 35)} stroke="#1f2937" strokeWidth="8" fill="none" strokeLinecap="round" />
 						<path d={arc(50, 50, 44, -215, -215 + 250 * clamp((speedDisplay / (speedUnit === "metric" ? 360 : 224)) * 100) / 100)} stroke="#22d3ee" strokeWidth="8" fill="none" strokeLinecap="round" />
 
-						<path d={arc(50, 50, 30, -212, -92)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -88, 32)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -212, -212 + 120 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<path d={arc(50, 50, 30, -88, -88 + 120 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="round" />
-						<line x1="50" y1="21" x2="50" y2="79" stroke="#3f4a62" strokeWidth="1.2" />
+						<path d={arc(50, 50, 30, -214, -96)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -84, 34)} stroke="#273244" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -214, -214 + 118 * (entry.throttle / 100))} stroke="#2dd4bf" strokeWidth="7" fill="none" strokeLinecap="round" />
+						<path d={arc(50, 50, 30, -84, -84 + 118 * (entry.brake / 100))} stroke="#f97316" strokeWidth="7" fill="none" strokeLinecap="round" />
 
 						<text x="50" y="44" textAnchor="middle" className="fill-zinc-100 text-[16px] font-black tabular-nums">{Math.round(speedDisplay)}</text>
 						<text x="50" y="52" textAnchor="middle" className="fill-zinc-300 text-[4px] font-bold">{speedLabel}</text>
 						<text x="50" y="59" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{entry.rpmRaw} RPM</text>
 
 						<text x="16" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">THR</text>
-						<text x="16" y="80" textAnchor="middle" className="fill-teal-300 text-[8px] font-black tabular-nums">{entry.throttle}%</text>
+						<text x="16" y="80" textAnchor="middle" className="fill-teal-300 text-[11px] font-black tabular-nums">{entry.throttle}%</text>
 						<text x="84" y="71" textAnchor="middle" className="fill-zinc-100 text-[5px] font-bold">BRK</text>
-						<text x="84" y="80" textAnchor="middle" className="fill-orange-300 text-[8px] font-black tabular-nums">{entry.brake}%</text>
+						<text x="84" y="80" textAnchor="middle" className="fill-orange-300 text-[11px] font-black tabular-nums">{entry.brake}%</text>
 
 						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
 						<rect x="58" y="66.5" width="1.8" height="3.2" rx="0.5" fill="#0ea5e9" />
@@ -199,7 +198,7 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 					</svg>
 				</div>
 
-				<div className="flex flex-col gap-1">
+				<div className="grid h-full grid-rows-4 gap-1 self-stretch">
 					<StatusTile label="Recharge" value={`${entry.recharge}%`} valueClass="text-emerald-300" />
 					<StatusTile label="Deploy" value={`${entry.deploy}%`} valueClass="text-amber-300" />
 					<StatusTile label="Boost" value={`${entry.boost}%`} valueClass="text-violet-300" />
@@ -214,7 +213,7 @@ function StatusTile({ label, value, valueClass }: { label: string; value: string
 	return (
 		<div className="rounded border border-zinc-800 bg-zinc-900/50 px-1 py-1">
 			<p className="text-[9px] uppercase tracking-wide text-zinc-400">{label}</p>
-			<p className={`text-xs font-bold tabular-nums ${valueClass}`}>{value}</p>
+			<p className={`text-base leading-tight font-bold tabular-nums ${valueClass}`}>{value}</p>
 		</div>
 	);
 }
