@@ -14,14 +14,25 @@
  */
 export const toTrackTime = (utc: string, offset: string): string => {
 	const date = new Date(utc);
+	if (Number.isNaN(date.getTime())) {
+		return new Date().toISOString();
+	}
 
-	const [hours, minutes, seconds]: (number | undefined)[] = offset.split(":").map((unit) => parseInt(unit));
+	const trimmed = (offset ?? "").trim();
+	const sign = trimmed.startsWith("-") ? -1 : 1;
+	const parts = trimmed.replace(/^[+-]/, "").split(":");
+	const [rawH = "0", rawM = "0", rawS = "0"] = parts;
+	const hours = Number.parseInt(rawH, 10);
+	const minutes = Number.parseInt(rawM, 10);
+	const seconds = Number.parseInt(rawS, 10);
 
-	if (!hours || !minutes || !seconds) return date.toISOString();
+	if ([hours, minutes, seconds].some((value) => Number.isNaN(value))) {
+		return date.toISOString();
+	}
 
-	date.setUTCHours(date.getUTCHours() + hours);
-	date.setUTCMinutes(date.getUTCMinutes() + minutes);
-	date.setUTCSeconds(date.getUTCSeconds() + seconds);
+	date.setUTCHours(date.getUTCHours() + sign * hours);
+	date.setUTCMinutes(date.getUTCMinutes() + sign * minutes);
+	date.setUTCSeconds(date.getUTCSeconds() + sign * seconds);
 
 	return date.toISOString();
 };

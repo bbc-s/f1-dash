@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
@@ -23,8 +23,14 @@ type TelemetryEntry = {
 	speed: number;
 	throttle: number;
 	brake: number;
-	rpm: number;
+	rpmPct: number;
+	rpmRaw: number;
 	gear: number;
+	battery: number;
+	recharge: number;
+	deploy: number;
+	boost: number;
+	aero: "ACTIVE" | "ARMED" | "OFF";
 };
 
 export default function TelemetryLarge() {
@@ -72,6 +78,15 @@ export default function TelemetryLarge() {
 			const line = timing[nr];
 			const car = cars[nr]?.Channels;
 			if (!driver || !line || !car) continue;
+			const unknown = Object.entries(car)
+				.filter(([key]) => !new Set(["0", "2", "3", "4", "5", "45"]).has(key))
+				.sort((a, b) => Number(a[0]) - Number(b[0]))
+				.map(([, value]) => value);
+			const battery = clamp(typeof unknown[0] === "number" ? unknown[0] : Math.round((car["0"] / 15000) * 100));
+			const deploy = clamp(typeof unknown[1] === "number" ? unknown[1] : Math.max(0, car["4"] - 20));
+			const recharge = clamp(typeof unknown[2] === "number" ? unknown[2] : Math.max(0, 100 - car["4"]));
+			const boost = clamp(typeof unknown[3] === "number" ? unknown[3] : Math.round((car["2"] / 360) * 100));
+			const drs = car["45"] ?? 0;
 			next.push({
 				nr,
 				tla: driver.Tla,
@@ -81,8 +96,14 @@ export default function TelemetryLarge() {
 				speed: speedUnit === "metric" ? car["2"] : kmhToMph(car["2"]),
 				throttle: clamp(car["4"]),
 				brake: car["5"] === 1 ? 100 : 0,
-				rpm: clamp(Math.round((car["0"] / 15000) * 100)),
+				rpmPct: clamp(Math.round((car["0"] / 15000) * 100)),
+				rpmRaw: car["0"],
 				gear: car["3"],
+				battery,
+				recharge,
+				deploy,
+				boost,
+				aero: drs > 9 ? "ACTIVE" : drs > 0 ? "ARMED" : "OFF",
 			});
 		}
 		return next;
@@ -92,28 +113,22 @@ export default function TelemetryLarge() {
 	const selectable = availableDrivers.filter((driver) => !selectedSet.has(driver.nr));
 
 	return (
-		<div className="flex h-full flex-col gap-3">
-			<div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-				<p className="text-sm font-semibold text-zinc-300">Telemetry drivers</p>
-				<div className="flex items-center gap-2">
-					<button
-						className="rounded border border-zinc-700 px-2 py-0.5 text-sm hover:border-cyan-500"
-						onClick={() => setPickerOpen((v) => !v)}
-						title="Add driver"
-						type="button"
-					>
-						+
-					</button>
-				</div>
+		<div className="flex h-full flex-col gap-2">
+			<div className="flex items-center justify-between border-b border-zinc-800 pb-1">
+				<p className="text-xs font-semibold text-zinc-300">Telemetry drivers</p>
+				<button
+					className="rounded border border-zinc-700 px-1.5 py-0 text-xs hover:border-cyan-500"
+					onClick={() => setPickerOpen((v) => !v)}
+					title="Add driver"
+					type="button"
+				>
+					+
+				</button>
 			</div>
 
 			{pickerOpen && (
 				<div className="flex items-center gap-2 rounded border border-zinc-800 p-2">
-					<select
-						className="min-w-[220px] rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs"
-						value={candidate}
-						onChange={(e) => setCandidate(e.target.value)}
-					>
+					<select className="min-w-[180px] rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs" value={candidate} onChange={(e) => setCandidate(e.target.value)}>
 						<option value="">Select driver</option>
 						{selectable.map((item) => (
 							<option key={item.nr} value={item.nr}>{`P${item.position} ${item.tla} (${item.nr})`}</option>
@@ -134,69 +149,96 @@ export default function TelemetryLarge() {
 				</div>
 			)}
 
-			<div className="flex flex-wrap gap-2">
+			<div className="flex flex-wrap gap-1.5">
 				{selectedNumbers.map((nr) => (
-					<button
-						key={nr}
-						className="rounded border border-zinc-700 px-2 py-1 text-xs hover:border-red-500"
-						onClick={() => setTelemetryDrivers(selectedNumbers.filter((item) => item !== nr))}
-						title="Remove driver"
-						type="button"
-					>
+					<button key={nr} className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] hover:border-red-500" onClick={() => setTelemetryDrivers(selectedNumbers.filter((item) => item !== nr))} title="Remove driver" type="button">
 						{nr} x
 					</button>
 				))}
 			</div>
 
-				{entries.length === 0 ? (
-					<div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-800">
-						<p className="text-zinc-500">Telemetry unavailable</p>
-					</div>
-				) : (
+			{entries.length === 0 ? (
+				<div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-800">
+					<p className="text-zinc-500">Telemetry unavailable</p>
+				</div>
+			) : (
 				<div className={`grid flex-1 gap-2 ${entries.length > 1 ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1"}`}>
 					{entries.map((entry) => (
-						<div key={entry.nr} className="flex h-full flex-col gap-2 rounded-lg border border-zinc-800 p-2">
-							<div className="flex items-end justify-between border-b border-zinc-800 pb-1">
-								<div>
-									<p className="text-xl font-bold">{entry.tla}</p>
-									<p className="text-xs text-zinc-400">
-										P{entry.position} - {entry.team}
-									</p>
-								</div>
-								<div className="text-right">
-									<p className="text-3xl font-black tabular-nums">{entry.speed}</p>
-									<p className="text-xs text-zinc-400">{speedUnit === "metric" ? "km/h" : "mph"}</p>
-								</div>
-							</div>
-							<div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-2">
-								<MetricBar label="Throttle" value={entry.throttle} color="bg-emerald-500" />
-								<MetricBar label="Brake" value={entry.brake} color="bg-red-500" />
-								<MetricBar label="RPM %" value={entry.rpm} color="bg-blue-500" />
-								<div className="rounded-lg border border-zinc-800 p-2">
-									<p className="text-xs text-zinc-400">Gear</p>
-									<p className="text-4xl font-black tabular-nums">{entry.gear}</p>
-									<p className="mt-1 text-xs text-zinc-500">Delta context: {entry.gap}</p>
-								</div>
-							</div>
-						</div>
+						<TelemetryCard key={entry.nr} entry={entry} speedUnit={speedUnit} />
 					))}
-					</div>
-				)}
-			</div>
-		);
-	}
+				</div>
+			)}
+		</div>
+	);
+}
 
-function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
+function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial" }) {
 	return (
-		<div className="rounded-lg border border-zinc-800 p-2">
-			<div className="mb-1 flex items-center justify-between">
-				<p className="text-xs text-zinc-300">{label}</p>
-				<p className="font-mono text-lg tabular-nums">{value}%</p>
+		<div className="grid grid-cols-[1fr_110px] gap-2 rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_20%_10%,rgba(45,93,184,0.22),rgba(15,15,20,0.95)_55%)] p-2">
+			<div className="flex flex-col gap-1">
+				<div className="flex items-center justify-between">
+					<div>
+						<p className="text-sm font-bold text-zinc-100">{entry.tla}</p>
+						<p className="text-[10px] text-zinc-400">{entry.team} | P{entry.position} | {entry.gap || "-"}</p>
+					</div>
+					<p className="text-[10px] font-semibold text-cyan-300">{entry.aero}</p>
+				</div>
+
+				<TelemetryDial speed={entry.speed} rpmRaw={entry.rpmRaw} throttle={entry.throttle} brake={entry.brake} gear={entry.gear} speedUnit={speedUnit} />
 			</div>
-			<div className="h-3 rounded bg-zinc-900">
-				<div className={`h-full rounded ${color}`} style={{ width: `${value}%` }} />
+
+			<div className="flex flex-col gap-1">
+				<StatusTile label="Battery" value={`${entry.battery}%`} valueClass="text-sky-300" />
+				<StatusTile label="Recharge" value={`${entry.recharge}%`} valueClass="text-emerald-300" />
+				<StatusTile label="Deploy" value={`${entry.deploy}%`} valueClass="text-amber-300" />
+				<StatusTile label="Boost" value={`${entry.boost}%`} valueClass="text-violet-300" />
+				<StatusTile label="RPM" value={`${entry.rpmPct}%`} valueClass="text-zinc-100" />
 			</div>
 		</div>
 	);
 }
 
+function TelemetryDial({ speed, rpmRaw, throttle, brake, gear, speedUnit }: { speed: number; rpmRaw: number; throttle: number; brake: number; gear: number; speedUnit: "metric" | "imperial" }) {
+	const maxSpeed = speedUnit === "metric" ? 360 : 224;
+	const ratio = clamp((speed / maxSpeed) * 100) / 100;
+	const angle = -120 + ratio * 240;
+	const needle = polar(50, 50, angle, 36);
+
+	return (
+		<div className="relative h-[145px] rounded-md border border-zinc-800 bg-zinc-950/35 p-1">
+			<svg viewBox="0 0 100 100" className="h-full w-full">
+				<path d={arc(50, 50, 42, -120, 120)} stroke="#1f2937" strokeWidth="8" fill="none" strokeLinecap="round" />
+				<path d={arc(50, 50, 42, -120, angle)} stroke="#38bdf8" strokeWidth="8" fill="none" strokeLinecap="round" />
+				<line x1="50" y1="50" x2={needle.x} y2={needle.y} stroke="#f8fafc" strokeWidth="2" strokeLinecap="round" />
+				<circle cx="50" cy="50" r="3" fill="#f8fafc" />
+				<text x="50" y="45" textAnchor="middle" className="fill-zinc-100 text-[14px] font-black tabular-nums">{Math.round(speed)}</text>
+				<text x="50" y="53" textAnchor="middle" className="fill-zinc-400 text-[4px] uppercase">{speedUnit === "metric" ? "km/h" : "mph"}</text>
+				<text x="50" y="60" textAnchor="middle" className="fill-zinc-300 text-[5px] font-semibold tabular-nums">{rpmRaw} rpm</text>
+				<text x="18" y="20" textAnchor="middle" className="fill-zinc-400 text-[4px]">THR {throttle}%</text>
+				<text x="82" y="20" textAnchor="middle" className="fill-zinc-400 text-[4px]">BRK {brake}%</text>
+				<text x="50" y="83" textAnchor="middle" className="fill-zinc-200 text-[6px] font-bold">GEAR {gear <= 0 ? "N" : gear}</text>
+			</svg>
+		</div>
+	);
+}
+
+function StatusTile({ label, value, valueClass }: { label: string; value: string; valueClass: string }) {
+	return (
+		<div className="rounded border border-zinc-800 bg-zinc-900/45 px-1.5 py-1">
+			<p className="text-[10px] uppercase tracking-wide text-zinc-400">{label}</p>
+			<p className={`text-sm font-bold tabular-nums ${valueClass}`}>{value}</p>
+		</div>
+	);
+}
+
+function polar(cx: number, cy: number, angleDeg: number, radius: number) {
+	const rad = (angleDeg * Math.PI) / 180;
+	return { x: cx + Math.cos(rad) * radius, y: cy + Math.sin(rad) * radius };
+}
+
+function arc(cx: number, cy: number, r: number, startDeg: number, endDeg: number) {
+	const start = polar(cx, cy, startDeg, r);
+	const end = polar(cx, cy, endDeg, r);
+	const large = endDeg - startDeg > 180 ? 1 : 0;
+	return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+}

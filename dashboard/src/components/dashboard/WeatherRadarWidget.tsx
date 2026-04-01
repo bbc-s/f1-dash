@@ -46,8 +46,8 @@ export default function WeatherRadarWidget() {
 }
 
 function ReplayWeatherTimeline({ samples }: { samples: WeatherSample[] }) {
-	const points = useMemo(() => {
-		if (samples.length === 0) return { air: "", track: "", hum: "", rain: "" };
+	const chart = useMemo(() => {
+		if (samples.length === 0) return { air: "", track: "", hum: "", rain: "", minTemp: 0, maxTemp: 0, maxX: 1 };
 		const maxX = Math.max(...samples.map((s) => s.cursorMs), 1);
 		const minTemp = Math.min(...samples.map((s) => Math.min(s.air, s.track)));
 		const maxTemp = Math.max(...samples.map((s) => Math.max(s.air, s.track)));
@@ -62,7 +62,7 @@ function ReplayWeatherTimeline({ samples }: { samples: WeatherSample[] }) {
 		const track = samples.map((s, i) => mk(90 - ((s.track - minTemp) / tempRange) * 80, i)).join(" ");
 		const hum = samples.map((s, i) => mk(90 - (s.humidity / 100) * 80, i)).join(" ");
 		const rain = samples.map((s, i) => mk(90 - (s.rain / 100) * 80, i)).join(" ");
-		return { air, track, hum, rain };
+		return { air, track, hum, rain, minTemp, maxTemp, maxX };
 	}, [samples]);
 
 	if (samples.length === 0) {
@@ -77,10 +77,15 @@ function ReplayWeatherTimeline({ samples }: { samples: WeatherSample[] }) {
 		<div className="flex min-h-[240px] flex-1 flex-col rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
 			<p className="mb-2 text-sm font-semibold text-zinc-200">Replay weather timeline</p>
 			<svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full rounded bg-zinc-950">
-				<polyline points={points.track} fill="none" stroke="#f59e0b" strokeWidth="1.5" />
-				<polyline points={points.air} fill="none" stroke="#38bdf8" strokeWidth="1.5" />
-				<polyline points={points.hum} fill="none" stroke="#22c55e" strokeWidth="1.2" />
-				<polyline points={points.rain} fill="none" stroke="#a78bfa" strokeWidth="1.2" />
+				<line x1="6" y1="10" x2="6" y2="92" stroke="#3f3f46" strokeWidth="0.8" />
+				<line x1="6" y1="92" x2="98" y2="92" stroke="#3f3f46" strokeWidth="0.8" />
+				<text x="2" y="12" className="fill-zinc-500 text-[3px]">{`${chart.maxTemp.toFixed(1)}C`}</text>
+				<text x="2" y="90" className="fill-zinc-500 text-[3px]">{`${chart.minTemp.toFixed(1)}C`}</text>
+				<text x="91" y="98" className="fill-zinc-500 text-[3px]">{`${Math.round(chart.maxX / 1000)}s`}</text>
+				<polyline points={chart.track} fill="none" stroke="#f59e0b" strokeWidth="1.5" />
+				<polyline points={chart.air} fill="none" stroke="#38bdf8" strokeWidth="1.5" />
+				<polyline points={chart.hum} fill="none" stroke="#22c55e" strokeWidth="1.2" />
+				<polyline points={chart.rain} fill="none" stroke="#a78bfa" strokeWidth="1.2" />
 			</svg>
 			<div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-zinc-400">
 				<span className="text-amber-300">Track temp</span>
