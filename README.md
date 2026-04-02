@@ -38,6 +38,7 @@ Full guide: [SETUP.md](SETUP.md)
 ## Dashboard UX Notes
 
 - `Telemetry (Large)` supports team-tinted cards and optional transparent mode (Settings -> Visual).
+- Multiple `Telemetry (Large)` popout windows can run with different driver selections; presets store and restore those popout selections.
 - Widget headers can be shown only on hover as overlay (Settings -> Visual), so layout does not jump.
 - Layout lock is available from sidebar and from the top dashboard bar (when sidebar is collapsed).
 - Replay stop now pauses and keeps last rendered widget state instead of forcing seek to 0.

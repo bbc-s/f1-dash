@@ -231,6 +231,10 @@ export default function HelpPage() {
 				You can also enable <span className="text-zinc-300">Telemetry Large transparent mode</span> in Settings for overlay usage on
 				video feeds.
 			</p>
+			<p className="mb-4">
+				Telemetry popouts can be opened in multiple windows with different selected drivers. When you save a widget preset, open
+				popout telemetry windows and their selected drivers are stored and restored.
+			</p>
 
 			<h3 className="my-4 text-xl">What to look for when syncing?</h3>
 

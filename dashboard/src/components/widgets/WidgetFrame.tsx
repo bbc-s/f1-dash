@@ -34,6 +34,7 @@ export default function WidgetFrame({
 	const setVisible = useWidgetLayoutStore((state) => state.setVisible);
 	const setZoom = useWidgetLayoutStore((state) => state.setZoom);
 	const setPosition = useWidgetLayoutStore((state) => state.setPosition);
+	const telemetryDrivers = useWidgetLayoutStore((state) => state.options.telemetryDrivers);
 	const widgetHeadersOnHover = useSettingsStore((state) => state.widgetHeadersOnHover);
 
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -163,7 +164,9 @@ export default function WidgetFrame({
 							{showPopout && (
 								<button
 									className="rounded border border-zinc-700 px-2 py-0.5"
-									onClick={() => openWidgetPopout(id, { width: Math.max(1280, config.width + 240), height: Math.max(900, config.height + 260) })}
+									onClick={() =>
+										openWidgetPopout(id, { width: Math.max(1280, config.width + 240), height: Math.max(900, config.height + 260) }, id === "telemetry" ? { telemetryDrivers } : undefined)
+									}
 									type="button"
 								>
 									popout

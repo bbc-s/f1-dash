@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import WidgetFrame from "@/components/widgets/WidgetFrame";
 import { useDataEngine } from "@/hooks/useDataEngine";
@@ -19,9 +20,12 @@ function isWidgetId(value: string): value is WidgetId {
 
 export default function WidgetPopoutClient({ id }: { id: string }) {
 	useWidgetLayoutSync();
+	const searchParams = useSearchParams();
 
 	const valid = isWidgetId(id);
 	const resolvedId: WidgetId = valid ? id : "leaderboard";
+	const popoutKey = searchParams.get("k") ?? "default";
+	const presetDrivers = searchParams.get("d") ?? "";
 
 	const stores = useStores();
 	const mode = useReplayStore((state) => state.mode);
@@ -40,28 +44,35 @@ export default function WidgetPopoutClient({ id }: { id: string }) {
 
 	useEffect(() => {
 		if (!valid) return;
+		if (resolvedId === "telemetry" && presetDrivers) {
+			sessionStorage.setItem("telemetry-popout-drivers-v1", JSON.stringify(presetDrivers.split(",").filter(Boolean)));
+		}
+		const telemetryDriversRaw = sessionStorage.getItem("telemetry-popout-drivers-v1");
+		const telemetryDrivers = telemetryDriversRaw ? (JSON.parse(telemetryDriversRaw) as string[]) : undefined;
 		markPopoutOpen(resolvedId, {
 			left: window.screenX,
 			top: window.screenY,
 			width: window.outerWidth,
 			height: window.outerHeight,
-		});
+		}, popoutKey, telemetryDrivers);
 		const timer = window.setInterval(() => {
+			const liveDriversRaw = sessionStorage.getItem("telemetry-popout-drivers-v1");
+			const liveTelemetryDrivers = liveDriversRaw ? (JSON.parse(liveDriversRaw) as string[]) : undefined;
 			updatePopoutGeometry(resolvedId, {
 				left: window.screenX,
 				top: window.screenY,
 				width: window.outerWidth,
 				height: window.outerHeight,
-			});
+			}, popoutKey, liveTelemetryDrivers);
 		}, 400);
-		const onClose = () => markPopoutClosed(resolvedId);
+		const onClose = () => markPopoutClosed(resolvedId, popoutKey);
 		window.addEventListener("beforeunload", onClose);
 		return () => {
 			window.clearInterval(timer);
 			window.removeEventListener("beforeunload", onClose);
-			markPopoutClosed(resolvedId);
+			markPopoutClosed(resolvedId, popoutKey);
 		};
-	}, [resolvedId, valid]);
+	}, [resolvedId, valid, popoutKey, presetDrivers]);
 
 	if (!valid) {
 		return <div className="flex h-screen w-screen items-center justify-center p-4">Unknown widget</div>;
