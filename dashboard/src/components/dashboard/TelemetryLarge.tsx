@@ -241,16 +241,16 @@ function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: Tel
 						{Array.from({ length: 26 }, (_, i) => i).map((index) => {
 							const ratio = index / 25;
 							const angle = -215 + 250 * ratio;
-							const outer = polar(50, 50, angle, 47.5);
+							const outer = polar(50, 50, angle, 45.8);
 							const major = index % 5 === 0;
-							const inner = polar(50, 50, angle, major ? 41.8 : 44.3);
-							return <line key={`speed.mark.${index}`} x1={outer.x} y1={outer.y} x2={inner.x} y2={inner.y} stroke="#5b6478" strokeWidth={major ? 1 : 0.55} />;
+							const inner = polar(50, 50, angle, major ? 41.8 : 43.8);
+							return <line key={`speed.mark.${index}`} x1={outer.x} y1={outer.y} x2={inner.x} y2={inner.y} stroke="#f8fafc" strokeOpacity={major ? 0.9 : 0.55} strokeWidth={major ? 1 : 0.55} />;
 						})}
 						{speedTicks.map((tick) => {
 							const angle = -215 + (250 * tick) / speedMax;
-							const pos = polar(50, 50, angle, 48);
+							const pos = polar(50, 50, angle, 45.1);
 							return (
-								<text key={`tick.${tick}`} x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="central" className="fill-zinc-500 text-[3.6px] font-semibold tabular-nums">
+								<text key={`tick.${tick}`} x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="central" className="fill-zinc-100 text-[3.6px] font-semibold tabular-nums">
 									{tick}
 								</text>
 							);

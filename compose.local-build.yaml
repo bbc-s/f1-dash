@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: dockerfile
       target: api
-    image: f1-dash-local-api:4.0.31
+    image: f1-dash-local-api:4.0.32
     ports:
       - 127.0.0.1:${API_PORT:-4010}:80
 
@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: dockerfile
       target: realtime
-    image: f1-dash-local-realtime:4.0.31
+    image: f1-dash-local-realtime:4.0.32
     ports:
       - 127.0.0.1:${LIVE_PORT:-4000}:80
     environment:
@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: dockerfile
       target: archive
-    image: f1-dash-local-archive:4.0.31
+    image: f1-dash-local-archive:4.0.32
     ports:
       - 127.0.0.1:${ARCHIVE_PORT:-4020}:80
     environment:
@@ -47,7 +47,7 @@ services:
     build:
       context: ./dashboard
       dockerfile: dockerfile
-    image: f1-dash-local-web:4.0.31
+    image: f1-dash-local-web:4.0.32
     ports:
       - 127.0.0.1:${WEB_PORT:-3000}:3000
     environment:
@@ -57,7 +57,7 @@ services:
       - REPLAY_URL=http://archive:80
       - NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST=${ARCHIVE_STORAGE_PATH_HOST:-./data/archive}
       - NEXT_PUBLIC_ARCHIVE_AUTO_RECORD=${ARCHIVE_AUTO_RECORD:-false}
-      - NEXT_PUBLIC_APP_VERSION=4.0.31
+      - NEXT_PUBLIC_APP_VERSION=4.0.32
     depends_on:
       - api
       - realtime
