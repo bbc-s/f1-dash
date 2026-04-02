@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { openWidgetPopout } from "@/lib/widgetPopouts";
 import type { WidgetId } from "@/stores/useWidgetLayoutStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 type Props = {
 	id: WidgetId;
@@ -33,6 +34,7 @@ export default function WidgetFrame({
 	const setVisible = useWidgetLayoutStore((state) => state.setVisible);
 	const setZoom = useWidgetLayoutStore((state) => state.setZoom);
 	const setPosition = useWidgetLayoutStore((state) => state.setPosition);
+	const widgetHeadersOnHover = useSettingsStore((state) => state.widgetHeadersOnHover);
 
 	const rootRef = useRef<HTMLDivElement>(null);
 	const dragStartRef = useRef<{ mouseX: number; mouseY: number; x: number; y: number } | null>(null);
@@ -82,6 +84,7 @@ export default function WidgetFrame({
 	}, [id, setPosition, setSize, layoutLocked, fixedAtOrigin]);
 
 	const activeZoom = zoomOverride ?? config.zoom;
+	const overlayChrome = showChrome && widgetHeadersOnHover && layoutLocked && !fixedAtOrigin;
 	const zoomStyle = useMemo<CSSProperties>(() => {
 		if (activeZoom === 1) return {};
 		return {
@@ -92,7 +95,7 @@ export default function WidgetFrame({
 	return (
 		<div
 			ref={rootRef}
-			className={`${fixedAtOrigin ? "relative" : "absolute"} min-h-[220px] min-w-[280px] ${layoutLocked || fixedAtOrigin ? "resize-none" : "resize"} overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-xl`}
+			className={`${fixedAtOrigin ? "relative" : "absolute"} group min-h-[220px] min-w-[280px] ${layoutLocked || fixedAtOrigin ? "resize-none" : "resize"} overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-xl`}
 			onMouseDown={(event) => {
 				if (layoutLocked || fixedAtOrigin) return;
 				const node = rootRef.current;
@@ -112,7 +115,13 @@ export default function WidgetFrame({
 			}}
 		>
 			{showChrome && (
-				<div className="mb-2 flex items-center justify-between border-b border-zinc-800 pb-2">
+				<div
+					className={
+						overlayChrome
+							? "pointer-events-none absolute top-2 right-2 left-2 z-20 flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/95 px-2 py-2 opacity-0 transition-opacity delay-[1000ms] duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:delay-0"
+							: "mb-2 flex items-center justify-between border-b border-zinc-800 pb-2"
+					}
+				>
 					<div className="flex items-center gap-2">
 						{!layoutLocked && !fixedAtOrigin && (
 							<button
@@ -164,7 +173,7 @@ export default function WidgetFrame({
 				</div>
 			)}
 
-			<div className={showChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto"} style={zoomStyle}>
+			<div className={showChrome && !overlayChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto"} style={zoomStyle}>
 				{children}
 			</div>
 		</div>

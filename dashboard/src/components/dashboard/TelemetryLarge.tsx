@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { useDataStore } from "@/stores/useDataStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -12,6 +13,21 @@ function kmhToMph(kmh: number) {
 
 function clamp(value: number, min = 0, max = 100) {
 	return Math.max(min, Math.min(max, value));
+}
+
+function teamTint(team: string): string {
+	const normalized = team.toLowerCase();
+	if (normalized.includes("mercedes")) return "#00d2be";
+	if (normalized.includes("red bull")) return "#3671c6";
+	if (normalized.includes("ferrari")) return "#e10600";
+	if (normalized.includes("mclaren")) return "#ff8000";
+	if (normalized.includes("aston martin")) return "#229971";
+	if (normalized.includes("alpine")) return "#0093cc";
+	if (normalized.includes("williams")) return "#005aff";
+	if (normalized.includes("haas")) return "#b6babd";
+	if (normalized.includes("sauber") || normalized.includes("kick")) return "#52e252";
+	if (normalized.includes("rb")) return "#6692ff";
+	return "#2b63c7";
 }
 
 type TelemetryEntry = {
@@ -35,16 +51,35 @@ type TelemetryEntry = {
 };
 
 export default function TelemetryLarge() {
+	const pathname = usePathname();
 	const favoriteDrivers = useSettingsStore((state) => state.favoriteDrivers);
 	const speedUnit = useSettingsStore((state) => state.speedUnit);
+	const telemetryTransparent = useSettingsStore((state) => state.telemetryTransparent);
 	const drivers = useDataStore((state) => state.state?.DriverList);
 	const timing = useDataStore((state) => state.state?.TimingData?.Lines);
 	const cars = useDataStore((state) => state.carsData);
 	const telemetryDrivers = useWidgetLayoutStore((state) => state.options.telemetryDrivers);
 	const setTelemetryDrivers = useWidgetLayoutStore((state) => state.setTelemetryDrivers);
+	const isPopoutTelemetry = pathname.includes("/widget/telemetry");
 
 	const [pickerOpen, setPickerOpen] = useState(false);
 	const [candidate, setCandidate] = useState("");
+	const [popoutDrivers, setPopoutDrivers] = useState<string[]>(() => {
+		if (typeof window === "undefined") return [];
+		try {
+			const raw = sessionStorage.getItem("telemetry-popout-drivers-v1");
+			if (!raw) return [];
+			const parsed = JSON.parse(raw) as unknown;
+			return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+		} catch {
+			return [];
+		}
+	});
+
+	useEffect(() => {
+		if (!isPopoutTelemetry) return;
+		sessionStorage.setItem("telemetry-popout-drivers-v1", JSON.stringify(popoutDrivers));
+	}, [isPopoutTelemetry, popoutDrivers]);
 
 	const sortedTiming = useMemo(() => {
 		if (!timing) return [];
@@ -64,11 +99,21 @@ export default function TelemetryLarge() {
 	}, [drivers, sortedTiming]);
 
 	const selectedNumbers = useMemo(() => {
-		if (telemetryDrivers.length > 0) return telemetryDrivers;
+		const currentDrivers = isPopoutTelemetry ? popoutDrivers : telemetryDrivers;
+		if (currentDrivers.length > 0) return currentDrivers;
 		if (sortedTiming.length === 0) return [];
 		const favorite = sortedTiming.find((entry) => favoriteDrivers.includes(entry.RacingNumber));
 		return [favorite?.RacingNumber ?? sortedTiming[0]?.RacingNumber].filter(Boolean) as string[];
-	}, [telemetryDrivers, sortedTiming, favoriteDrivers]);
+	}, [isPopoutTelemetry, popoutDrivers, telemetryDrivers, sortedTiming, favoriteDrivers]);
+
+	const updateSelectedDrivers = (next: string[]) => {
+		const normalized = Array.from(new Set(next.map((value) => value.trim()).filter(Boolean)));
+		if (isPopoutTelemetry) {
+			setPopoutDrivers(normalized);
+			return;
+		}
+		setTelemetryDrivers(normalized);
+	};
 
 	const entries = useMemo((): TelemetryEntry[] => {
 		if (!drivers || !timing || !cars) return [];
@@ -129,7 +174,7 @@ export default function TelemetryLarge() {
 						className="rounded border border-cyan-500 px-2 py-1 text-xs text-cyan-200"
 						onClick={() => {
 							if (!candidate) return;
-							setTelemetryDrivers([...selectedNumbers, candidate]);
+							updateSelectedDrivers([...selectedNumbers, candidate]);
 							setCandidate("");
 							setPickerOpen(false);
 						}}
@@ -140,37 +185,48 @@ export default function TelemetryLarge() {
 				</div>
 			)}
 
-			<div className="flex flex-wrap gap-1.5">
-				{selectedNumbers.map((nr) => (
-					<button key={nr} className="rounded border border-zinc-700 px-1.5 py-0.5 text-[10px] hover:border-red-500" onClick={() => setTelemetryDrivers(selectedNumbers.filter((item) => item !== nr))} title="Remove driver" type="button">{nr} x</button>
-				))}
-			</div>
-
 			{entries.length === 0 ? (
 					<div className="flex flex-1 items-center justify-center rounded-lg border border-zinc-800"><p className="text-zinc-500">Telemetry unavailable</p></div>
 				) : (
 					<div className="grid auto-rows-min grid-cols-[repeat(auto-fill,minmax(300px,1fr))] items-start gap-2">
-						{entries.map((entry) => <TelemetryCard key={entry.nr} entry={entry} speedUnit={speedUnit} />)}
+						{entries.map((entry) => (
+							<TelemetryCard
+								key={entry.nr}
+								entry={entry}
+								speedUnit={speedUnit}
+								transparent={telemetryTransparent}
+								onRemove={() => updateSelectedDrivers(selectedNumbers.filter((item) => item !== entry.nr))}
+							/>
+						))}
 					</div>
 				)}
 			</div>
 	);
 }
 
-function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial" }) {
+function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial"; transparent: boolean; onRemove: () => void }) {
 	const speedDisplay = speedUnit === "metric" ? entry.speedKmh : entry.speedMph;
 	const speedLabel = speedUnit === "metric" ? "KM/H" : "MPH";
 	const speedMax = speedUnit === "metric" ? 360 : 224;
 	const speedTicks = speedUnit === "metric" ? [0, 60, 120, 180, 240, 300, 360] : [0, 40, 80, 120, 160, 200, 224];
 	const idPrefix = `telemetry-${entry.nr}`;
+	const tint = teamTint(entry.team);
 	return (
-		<div className="rounded-lg border border-zinc-800 bg-[radial-gradient(circle_at_25%_10%,rgba(43,99,199,0.22),rgba(9,12,20,0.98)_65%)] p-2">
+		<div
+			className={`rounded-lg border border-zinc-800 p-2 ${transparent ? "bg-zinc-950/25 backdrop-blur-[1px]" : "bg-zinc-950"}`}
+			style={{
+				backgroundImage: `radial-gradient(circle_at_25%_10%, ${tint}44, rgba(9,12,20,${transparent ? "0.35" : "0.98"}) 65%)`,
+			}}
+		>
 			<div className="mb-1 flex items-start justify-between">
-				<div>
+				<div className="flex items-center gap-2">
 					<p className="text-sm font-bold text-zinc-100">{entry.tla}</p>
-					<p className="text-[10px] text-zinc-400">{entry.team} | P{entry.position} | {entry.gap || "-"}</p>
+					<button className="rounded border border-zinc-700 px-1 py-0 text-[10px] text-zinc-300 hover:border-red-500 hover:text-red-300" onClick={onRemove} title="Remove driver" type="button">x</button>
 				</div>
-				<div className="rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
+				<div className="flex flex-col items-end">
+					<p className="text-[10px] text-zinc-400">{entry.team} | P{entry.position} | {entry.gap || "-"}</p>
+					<div className="mt-0.5 rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
+				</div>
 			</div>
 
 			<div className="grid grid-cols-[1fr_82px] items-stretch gap-2">
@@ -212,11 +268,9 @@ function TelemetryCard({ entry, speedUnit }: { entry: TelemetryEntry; speedUnit:
 						<text className="fill-zinc-200 text-[4.5px] font-bold tracking-wide">
 							<textPath href={`#${idPrefix}-throttle-label`} startOffset="50%" textAnchor="middle">THROTTLE</textPath>
 						</text>
-						<text x="32" y="74.5" textAnchor="middle" className="fill-teal-300 text-[8.5px] font-black tabular-nums">{entry.throttle}%</text>
 						<text className="fill-zinc-200 text-[4.5px] font-bold tracking-wide">
 							<textPath href={`#${idPrefix}-brake-label`} startOffset="50%" textAnchor="middle">BRAKE</textPath>
 						</text>
-						<text x="68" y="74.5" textAnchor="middle" className="fill-orange-300 text-[8.5px] font-black tabular-nums">{entry.brake}%</text>
 
 						<rect x="42" y="64.5" width="16" height="7" rx="1.5" fill="none" stroke="#0ea5e9" strokeWidth="1" />
 						<rect x="58" y="66.5" width="1.8" height="3.2" rx="0.5" fill="#0ea5e9" />

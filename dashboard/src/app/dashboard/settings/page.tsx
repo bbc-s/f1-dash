@@ -47,6 +47,8 @@ export default function SettingsPage() {
 			<div className="flex gap-2"><Toggle enabled={settings.showMiniSectors} setEnabled={(v) => settings.setShowMiniSectors(v)} /><p className="text-zinc-500">Show Drivers Mini Sectors</p></div>
 			<div className="flex gap-2"><Toggle enabled={settings.oledMode} setEnabled={(v) => settings.setOledMode(v)} /><p className="text-zinc-500">OLED Mode (Pure Black Background)</p></div>
 			<div className="flex gap-2"><Toggle enabled={settings.useSafetyCarColors} setEnabled={(v) => settings.setUseSafetyCarColors(v)} /><p className="text-zinc-500">Use Safety Car Colors</p></div>
+			<div className="flex gap-2"><Toggle enabled={settings.widgetHeadersOnHover} setEnabled={(v) => settings.setWidgetHeadersOnHover(v)} /><p className="text-zinc-500">Widget headers only on hover (overlay, no layout shift)</p></div>
+			<div className="flex gap-2"><Toggle enabled={settings.telemetryTransparent} setEnabled={(v) => settings.setTelemetryTransparent(v)} /><p className="text-zinc-500">Telemetry Large transparent background (overlay on video feed)</p></div>
 
 			<h2 className="my-4 text-2xl">Race Control</h2>
 			<div className="flex gap-2"><Toggle enabled={settings.raceControlChime} setEnabled={(v) => settings.setRaceControlChime(v)} /><p className="text-zinc-500">Play Chime on new Race Control Message</p></div>

@@ -15,6 +15,7 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
 import { useDataStore } from "@/stores/useDataStore";
 import { useReplayStore } from "@/stores/useReplayStore";
+import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
 import { getTrackStatusMessage } from "@/lib/getTrackStatusMessage";
 
 import Sidebar from "@/components/Sidebar";
@@ -110,6 +111,25 @@ function MobileDynamicBar() {
 	);
 }
 
+function LockGlyph({ locked }: { locked: boolean }) {
+	if (locked) {
+		return (
+			<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+				<rect x="4" y="11" width="16" height="9" rx="2" />
+				<path d="M8 11V8a4 4 0 1 1 8 0v3" />
+			</svg>
+		);
+	}
+	return (
+		<svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+			<rect x="4" y="11" width="16" height="9" rx="2" />
+			<path d="M8 11V8a4 4 0 0 1 7.2-2.4" />
+			<path d="M16 4l4 4" />
+			<path d="M20 4l-4 4" />
+		</svg>
+	);
+}
+
 function MobileStaticBar({ show, connected, replayControls }: { show: boolean; connected: boolean; replayControls: ReturnType<typeof useReplaySync> }) {
 	const open = useSidebarStore((state) => state.open);
 
@@ -130,8 +150,11 @@ function MobileStaticBar({ show, connected, replayControls }: { show: boolean; c
 }
 
 function DesktopStaticBar({ show, replayControls }: { show: boolean; replayControls: ReturnType<typeof useReplaySync> }) {
+	const pathname = usePathname();
 	const pinned = useSidebarStore((state) => state.pinned);
 	const pin = useSidebarStore((state) => state.pin);
+	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
+	const setLayoutLocked = useWidgetLayoutStore((state) => state.setLayoutLocked);
 	const trackStatus = useDataStore((state) => state.state?.TrackStatus?.Status);
 	const trackFade = getTrackStatusMessage(trackStatus ? Number.parseInt(trackStatus, 10) : undefined);
 
@@ -146,6 +169,16 @@ function DesktopStaticBar({ show, replayControls }: { show: boolean; replayContr
 				<div className="flex items-center gap-2">
 					<AnimatePresence>
 						{!pinned && <SidenavButton key="desktop" className="shrink-0" onClick={() => pin()} />}
+						{!pinned && pathname === "/dashboard" && (
+							<button
+								className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-zinc-700 text-zinc-200 hover:border-cyan-500"
+								onClick={() => setLayoutLocked(!layoutLocked)}
+								title={layoutLocked ? "Unlock layout" : "Lock layout"}
+								type="button"
+							>
+								<LockGlyph locked={layoutLocked} />
+							</button>
+						)}
 						<motion.div key="session-info" layout="position">
 							<SessionInfo />
 						</motion.div>
@@ -298,7 +331,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 						{replayFeedback && <span className="text-xs text-zinc-300">{replayFeedback}</span>}
 						<div className="flex items-center gap-1">
 							{playing ? <button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">❚❚</button> : <button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">▶</button>}
-							<button className={iconButton} onClick={() => { void controls.pause(); void controls.seek(0); }} type="button" title="Stop">■</button>
+							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Stop">■</button>
 							<span className={`text-xs ${playing ? "text-emerald-300" : "text-zinc-500"}`}>{playing ? "Playing" : "Paused"}</span>
 						</div>
 					<select className="rounded border border-zinc-700 bg-zinc-900 p-1 text-xs" value={String(speed)} onChange={(e) => void controls.speed(Number(e.target.value))}><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option></select>

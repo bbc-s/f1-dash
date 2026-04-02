@@ -28,7 +28,7 @@ export default function WidgetPopoutClient({ id }: { id: string }) {
 	const layoutLocked = useWidgetLayoutStore((state) => state.layoutLocked);
 	const { handleInitial, handleUpdate } = useDataEngine({ ...stores, enabled: mode === "live" });
 	useLiveSyncSocket({ enabled: mode === "live", handleInitial, handleUpdate });
-	useReplaySync(stores);
+	useReplaySync(stores, { passive: true, skipBootstrapLoad: true });
 
 	const localKey = useMemo(() => `widget-popout-zoom-v1:${resolvedId}`, [resolvedId]);
 	const [localZoom, setLocalZoom] = useState<number>(() => {

@@ -48,6 +48,10 @@ type SettingsStore = {
 	setDelayIsPaused: (delayIsPaused: boolean) => void;
 	noSpoiler: boolean;
 	setNoSpoiler: (noSpoiler: boolean) => void;
+	widgetHeadersOnHover: boolean;
+	setWidgetHeadersOnHover: (widgetHeadersOnHover: boolean) => void;
+	telemetryTransparent: boolean;
+	setTelemetryTransparent: (telemetryTransparent: boolean) => void;
 
 	leaderboardColumns: LeaderboardColumn[];
 	setLeaderboardColumns: (columns: LeaderboardColumn[]) => void;
@@ -110,6 +114,10 @@ export const useSettingsStore = create<SettingsStore>()(
 					setDelayIsPaused: (delayIsPaused: boolean) => set({ delayIsPaused }),
 					noSpoiler: false,
 					setNoSpoiler: (noSpoiler: boolean) => set({ noSpoiler }),
+					widgetHeadersOnHover: false,
+					setWidgetHeadersOnHover: (widgetHeadersOnHover: boolean) => set({ widgetHeadersOnHover }),
+					telemetryTransparent: false,
+					setTelemetryTransparent: (telemetryTransparent: boolean) => set({ telemetryTransparent }),
 
 				leaderboardColumns: leaderboardColumnsDefault,
 				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) =>

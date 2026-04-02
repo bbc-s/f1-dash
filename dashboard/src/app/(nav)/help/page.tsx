@@ -218,6 +218,20 @@ export default function HelpPage() {
 				visit makes you wait 10s until playback of the updates resumes. (This will be changed in the future)
 			</Note>
 
+			<h2 className="my-4 text-2xl">Layout & Widget Controls</h2>
+			<p className="mb-2">
+				You can lock/unlock widget editing from the sidebar lock button or from the top dashboard bar lock button when the
+				sidebar is collapsed.
+			</p>
+			<p className="mb-2">
+				In Settings you can enable <span className="text-zinc-300">Widget headers on hover</span>. In this mode headers are shown
+				as an overlay and do not change widget positions/sizes.
+			</p>
+			<p className="mb-4">
+				You can also enable <span className="text-zinc-300">Telemetry Large transparent mode</span> in Settings for overlay usage on
+				video feeds.
+			</p>
+
 			<h3 className="my-4 text-xl">What to look for when syncing?</h3>
 
 			<ul className="list ml-6 list-disc">

@@ -99,7 +99,7 @@ export function useReplaySync(updateFns: {
 	updateState: (state: State, options?: { replace?: boolean }) => void;
 	updateCarData: (cars: CarsData | null) => void;
 	updatePosition: (positions: Positions | null) => void;
-}) {
+}, options?: { passive?: boolean; skipBootstrapLoad?: boolean }) {
 	const mode = useReplayStore((state) => state.mode);
 	const setConnected = useReplayStore((state) => state.setConnected);
 	const setFrameState = useReplayStore((state) => state.setFrameState);
@@ -183,6 +183,11 @@ export function useReplaySync(updateFns: {
 		};
 
 		const becomeLeader = () => {
+			if (options?.passive) {
+				leaderRef.current = false;
+				stopPolling();
+				return;
+			}
 			leaderRef.current = true;
 			writeLease({ tabId, ts: now() });
 			startPolling();
@@ -222,7 +227,7 @@ export function useReplaySync(updateFns: {
 		void (async () => {
 			if (mode !== "replay") return;
 			const rememberedRecordingId = useReplayStore.getState().recordingId;
-			if (rememberedRecordingId) {
+			if (rememberedRecordingId && !options?.skipBootstrapLoad) {
 				forceReplaceNextFrameRef.current = true;
 				await postReplay("/api/replay/load", { recording_id: rememberedRecordingId });
 			}
@@ -261,7 +266,7 @@ export function useReplaySync(updateFns: {
 				localStorage.removeItem(LEADER_KEY);
 			}
 		};
-	}, [mode, setConnected, setFrameState, tabId]);
+	}, [mode, options?.passive, options?.skipBootstrapLoad, setConnected, setFrameState, tabId]);
 
 	const controls = {
 		play: () => postReplay("/api/replay/play"),
