@@ -1,5 +1,4 @@
 import { AnimatePresence, LayoutGroup } from "motion/react";
-import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -42,8 +41,11 @@ export default function LeaderBoard() {
 		<div className="flex w-fit flex-col gap-0.5">
 			{showTableHeader && <TableHeaders template={template} columns={visibleColumns} />}
 
-			{(!drivers || !driversTiming) &&
-				new Array(20).fill("").map((_, index) => <SkeletonDriver key={`driver.loading.${index}`} />)}
+			{(!drivers || !driversTiming) && (
+				<div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-sm text-zinc-400">
+					No current leaderboard data from feed yet.
+				</div>
+			)}
 
 			<LayoutGroup key="drivers">
 				{drivers && driversTiming && (
@@ -187,28 +189,3 @@ function TableHeaders({ template, columns }: { template: string; columns: Leader
 		</div>
 	);
 }
-
-const SkeletonDriver = () => {
-	const storedColumns = useSettingsStore((state) => state.leaderboardColumns);
-	const mergedColumns = useMemo(() => {
-		const byId = new Map(storedColumns.map((col) => [col.id, col]));
-		return leaderboardColumnsDefault.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
-	}, [storedColumns]);
-	const template = mergedColumns.filter((col) => col.visible).map((col) => col.width).join(" ");
-	const visibleCount = mergedColumns.filter((col) => col.visible).length;
-
-	const animateClass = "h-8 animate-pulse rounded-md bg-zinc-800";
-
-	return (
-		<div
-			className="grid items-center gap-2 p-1.5"
-			style={{
-				gridTemplateColumns: template,
-			}}
-		>
-			{new Array(visibleCount).fill(null).map((_, index) => (
-				<div className={clsx(animateClass, "h-6")} key={`skeleton.cell.${index}`} style={{ width: "100%" }} />
-			))}
-		</div>
-	);
-};

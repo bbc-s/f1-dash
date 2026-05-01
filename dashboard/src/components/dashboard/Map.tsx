@@ -224,8 +224,8 @@ export default function Map({ filter }: Props) {
 			);
 		}
 		return (
-			<div className="h-full w-full p-2" style={{ minHeight: "35rem" }}>
-				<div className="h-full w-full animate-pulse rounded-lg bg-zinc-800" />
+			<div className="flex h-full min-h-[24rem] w-full items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/30 p-2 text-sm text-zinc-400">
+				No current map data from feed yet.
 			</div>
 		);
 	}

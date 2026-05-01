@@ -1,5 +1,4 @@
 import { AnimatePresence } from "motion/react";
-import clsx from "clsx";
 
 import { useDataStore } from "@/stores/useDataStore";
 
@@ -22,7 +21,7 @@ export default function TeamRadios() {
 
 	return (
 		<ul className="flex flex-col gap-2">
-			{!sessionLoaded && new Array(6).fill("").map((_, index) => <SkeletonMessage key={`radio.loading.${index}`} />)}
+			{!sessionLoaded && <li className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-sm text-zinc-400">No current team radio data from feed yet.</li>}
 
 			{sessionLoaded && captures.length === 0 && <li className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-sm text-zinc-400">No team radios available for this session/feed yet.</li>}
 
@@ -46,29 +45,3 @@ export default function TeamRadios() {
 		</ul>
 	);
 }
-
-const SkeletonMessage = () => {
-	const animateClass = "h-6 animate-pulse rounded-md bg-zinc-800";
-
-	return (
-		<li className="flex flex-col gap-1 p-2">
-			<div className={clsx(animateClass, "h-4! w-16")} />
-
-			<div
-				className="grid place-items-center items-center gap-4"
-				style={{
-					gridTemplateColumns: "2rem 20rem",
-				}}
-			>
-				<div className="place-self-start">
-					<div className={clsx(animateClass, "h-8! w-14")} />
-				</div>
-
-				<div className="flex items-center gap-4">
-					<div className={clsx(animateClass, "h-6 w-6")} />
-					<div className={clsx(animateClass, "h-2! w-60")} />
-				</div>
-			</div>
-		</li>
-	);
-};

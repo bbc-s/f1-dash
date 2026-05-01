@@ -52,7 +52,7 @@ export default function WeatherRadarWidget() {
 
 	return (
 		<div className="flex h-full w-full flex-col gap-2">
-			{mode === "replay" ? <ReplayWeatherTimeline samples={samples} /> : <div className="relative min-h-[240px] flex-1"><WeatherMap /></div>}
+			{mode === "replay" ? <ReplayWeatherTimeline samples={samples} /> : <div className="relative min-h-[240px] flex-1"><WeatherMap showForecast={false} /></div>}
 		</div>
 	);
 }

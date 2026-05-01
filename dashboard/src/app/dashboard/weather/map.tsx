@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -44,7 +44,7 @@ const raceCoords: Record<string, Coords> = {
 	"Singapore Grand Prix": { lat: "1.2914", lon: "103.864" },
 	"United States Grand Prix": { lat: "30.1328", lon: "-97.6411" },
 	"Mexico City Grand Prix": { lat: "19.4042", lon: "-99.0907" },
-	"São Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
+	"SĂŁo Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
 	"Sao Paulo Grand Prix": { lat: "-23.7036", lon: "-46.6997" },
 	"Las Vegas Grand Prix": { lat: "36.1699", lon: "-115.1398" },
 	"Qatar Grand Prix": { lat: "25.49", lon: "51.4542" },
@@ -92,7 +92,7 @@ function normalizeName(value?: string): string {
 		.trim();
 }
 
-export function WeatherMap() {
+export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) {
 	const meeting = useDataStore((state) => state.state?.SessionInfo?.Meeting);
 	const raceWeekOverride = useRaceWeekOverride();
 	const [coords, setCoords] = useState<{ lat: string; lon: string } | null>(null);
@@ -114,7 +114,7 @@ export function WeatherMap() {
 	const meetingCountry = useMemo(() => normalizeName(effectiveMeeting?.Country?.Name), [effectiveMeeting]);
 	const meetingCoords = useMemo(() => {
 		if (!effectiveMeeting?.Name) return null;
-		return raceCoords[effectiveMeeting.Name] ?? raceCoords[effectiveMeeting.Name.replaceAll("SÃO", "São")] ?? null;
+		return raceCoords[effectiveMeeting.Name] ?? raceCoords[effectiveMeeting.Name.replaceAll("SĂO", "SĂŁo")] ?? null;
 	}, [effectiveMeeting]);
 
 	useEffect(() => {
@@ -253,7 +253,7 @@ export function WeatherMap() {
 
 	return (
 		<div className="flex h-full w-full flex-col gap-2">
-			<div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-2">
+			{showForecast && <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-2">
 				<div className="mb-2 flex items-center justify-between">
 					<div className="text-xs font-semibold text-zinc-200">Race weekend forecast (Fri/Sat/Sun)</div>
 					<div className="text-[11px] text-zinc-400">Source: Open-Meteo forecast</div>
@@ -276,7 +276,7 @@ export function WeatherMap() {
 						);
 					})}
 				</div>
-			</div>
+			</div>}
 
 			<div className="relative min-h-[420px] flex-1">
 				<iframe
@@ -304,3 +304,5 @@ export function WeatherMap() {
 		</div>
 	);
 }
+
+

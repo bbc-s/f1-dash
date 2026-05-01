@@ -1,6 +1,5 @@
 import { AnimatePresence } from "motion/react";
 import { useEffect, useRef } from "react";
-import clsx from "clsx";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useDataStore } from "@/stores/useDataStore";
@@ -55,8 +54,7 @@ export default function RaceControl() {
 
 	return (
 		<ul className="flex flex-col gap-2">
-			{!messages &&
-				new Array(7).fill("").map((_, index) => <SkeletonMessage key={`msg.loading.${index}`} index={index} />)}
+			{!messages && <li className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3 text-sm text-zinc-400">No current race control messages from feed yet.</li>}
 
 			{messages && gmtOffset && (
 				<AnimatePresence>
@@ -71,22 +69,3 @@ export default function RaceControl() {
 		</ul>
 	);
 }
-
-const SkeletonMessage = ({ index }: { index: number }) => {
-	const animateClass = "h-6 animate-pulse rounded-md bg-zinc-800";
-
-	const flag = index % 4 === 0;
-	const long = index % 5 === 0;
-	const mid = index % 3 === 0;
-
-	return (
-		<li className="flex flex-col gap-1 p-2">
-			<div className={clsx(animateClass, "h-4! w-16")} />
-
-			<div className="flex gap-1">
-				{flag && <div className={clsx(animateClass, "w-6")} />}
-				<div className={animateClass} style={{ width: long ? "100%" : mid ? "75%" : "40%" }} />
-			</div>
-		</li>
-	);
-};
