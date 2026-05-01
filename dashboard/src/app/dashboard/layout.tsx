@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: Props) {
 		Boolean(raceWeekOverride?.active) &&
 		Boolean(raceWeekOverride?.nextSessionStartUtc) &&
 		Date.parse(raceWeekOverride?.nextSessionStartUtc ?? "") > Date.now();
-	const allowLiveData = mode === "live" && !preSessionRaceWeek && (!spoilerGuardEnabled || liveConfirmed);
+	const allowLiveData = mode === "live" && (!spoilerGuardEnabled || liveConfirmed);
 
 	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: allowLiveData });
 	const replayConnected = useReplayStore((state) => state.connected);
