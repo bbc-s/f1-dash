@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchCoords } from "@/lib/geocode";
+import { useRaceWeekOverride } from "@/hooks/useRaceWeekOverride";
 import { useDataStore } from "@/stores/useDataStore";
 
 type RaceOption = {
@@ -81,21 +82,27 @@ function normalizeName(value?: string): string {
 
 export function WeatherMap() {
 	const meeting = useDataStore((state) => state.state?.SessionInfo?.Meeting);
+	const raceWeekOverride = useRaceWeekOverride();
 	const [coords, setCoords] = useState<{ lat: string; lon: string } | null>(null);
 	const [races, setRaces] = useState<RaceOption[]>([]);
 	const [selectedRace, setSelectedRace] = useState("");
+	const overrideActive = Boolean(raceWeekOverride?.active);
+	const effectiveMeeting = useMemo(
+		() => (overrideActive && raceWeekOverride ? { Name: raceWeekOverride.meetingName, Country: { Name: raceWeekOverride.countryName } } : meeting),
+		[overrideActive, raceWeekOverride, meeting],
+	);
 
 	const currentRaceLabel = useMemo(() => {
-		const meetingName = meeting?.Name?.trim();
-		const country = meeting?.Country?.Name?.trim();
+		const meetingName = effectiveMeeting?.Name?.trim();
+		const country = effectiveMeeting?.Country?.Name?.trim();
 		return meetingName && country ? `${meetingName} (${country})` : "";
-	}, [meeting]);
-	const meetingName = useMemo(() => normalizeName(meeting?.Name), [meeting]);
-	const meetingCountry = useMemo(() => normalizeName(meeting?.Country?.Name), [meeting]);
+	}, [effectiveMeeting]);
+	const meetingName = useMemo(() => normalizeName(effectiveMeeting?.Name), [effectiveMeeting]);
+	const meetingCountry = useMemo(() => normalizeName(effectiveMeeting?.Country?.Name), [effectiveMeeting]);
 	const meetingCoords = useMemo(() => {
-		if (!meeting?.Name) return null;
-		return raceCoords[meeting.Name] ?? raceCoords[meeting.Name.replaceAll("SÃO", "São")] ?? null;
-	}, [meeting]);
+		if (!effectiveMeeting?.Name) return null;
+		return raceCoords[effectiveMeeting.Name] ?? raceCoords[effectiveMeeting.Name.replaceAll("SÃO", "São")] ?? null;
+	}, [effectiveMeeting]);
 
 	useEffect(() => {
 		let cancelled = false;

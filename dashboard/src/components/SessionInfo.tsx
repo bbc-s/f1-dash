@@ -5,6 +5,7 @@ import { utc, duration } from "moment";
 import { useDataStore } from "@/stores/useDataStore";
 import { useReplayStore } from "@/stores/useReplayStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useRaceWeekOverride } from "@/hooks/useRaceWeekOverride";
 
 import Flag from "@/components/Flag";
 
@@ -24,11 +25,23 @@ export default function SessionInfo() {
 	const session = useDataStore((state) => state.state?.SessionInfo);
 	const timingData = useDataStore((state) => state.state?.TimingData);
 	const mode = useReplayStore((state) => state.mode);
+	const raceWeekOverride = useRaceWeekOverride();
 
 	const delay = useSettingsStore((state) => state.delay);
+	const overrideActive = mode === "live" && Boolean(raceWeekOverride?.active);
+	const overrideCountdown =
+		overrideActive && raceWeekOverride
+			? raceWeekOverride.nextSessionInLabel
+			: null;
+
+	const displayMeetingName = overrideActive && raceWeekOverride ? raceWeekOverride.meetingName : session?.Meeting.Name;
+	const displaySessionName = overrideActive && raceWeekOverride ? raceWeekOverride.sessionName : session?.Name;
+	const displayCountryCode = overrideActive && raceWeekOverride ? raceWeekOverride.countryCode : session?.Meeting.Country.Code;
 
 	const timeRemaining =
-		!!clock && !!clock.Remaining
+		overrideCountdown !== null
+			? overrideCountdown
+			: !!clock && !!clock.Remaining
 			? clock.Extrapolating
 				? utc(
 						duration(clock.Remaining)
@@ -40,13 +53,13 @@ export default function SessionInfo() {
 
 	return (
 		<div className="flex items-center gap-2">
-			<Flag countryCode={session?.Meeting.Country.Code} />
+			<Flag countryCode={displayCountryCode} />
 
 			<div className="flex flex-col justify-center">
-				{session ? (
+				{displayMeetingName ? (
 					<h1 className="truncate text-sm leading-none font-medium text-white">
-						{session.Meeting.Name}: {session.Name ?? "Unknown"}
-						{timingData?.SessionPart ? ` ${sessionPartPrefix(session.Name)}${timingData.SessionPart}` : ""}
+						{displayMeetingName}: {displaySessionName ?? "Unknown"}
+						{!overrideActive && timingData?.SessionPart && session?.Name ? ` ${sessionPartPrefix(session.Name)}${timingData.SessionPart}` : ""}
 					</h1>
 				) : (
 					<div className="h-4 w-[250px] animate-pulse rounded-md bg-zinc-800" />
@@ -55,7 +68,7 @@ export default function SessionInfo() {
 					{mode === "replay" ? (
 						<p className="text-2xl leading-none font-extrabold text-amber-300">WATCHING REPLAY</p>
 					) : timeRemaining !== undefined ? (
-						<p className="text-2xl leading-none font-extrabold">{timeRemaining}</p>
+						<p className="text-2xl leading-none font-extrabold">{overrideActive ? `Next session in ${timeRemaining}` : timeRemaining}</p>
 					) : (
 						<div className="mt-1 h-6 w-[150px] animate-pulse rounded-md bg-zinc-800 font-semibold" />
 					)}

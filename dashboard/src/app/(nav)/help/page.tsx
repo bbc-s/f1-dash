@@ -235,6 +235,10 @@ export default function HelpPage() {
 				Telemetry popouts can be opened in multiple windows with different selected drivers. When you save a widget preset, open
 				popout telemetry windows and their selected drivers are stored and restored.
 			</p>
+			<p className="mb-4">
+				Race-week auto switch is enabled: when the next session is less than 7 days away, the dashboard header and weather context
+				switch to the upcoming Grand Prix instead of staying on the previous event.
+			</p>
 
 			<h3 className="my-4 text-xl">What to look for when syncing?</h3>
 

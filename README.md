@@ -42,6 +42,7 @@ Full guide: [SETUP.md](SETUP.md)
 - Widget headers can be shown only on hover as overlay (Settings -> Visual), so layout does not jump.
 - Layout lock is available from sidebar and from the top dashboard bar (when sidebar is collapsed).
 - Replay stop now pauses and keeps last rendered widget state instead of forcing seek to 0.
+- Race-week auto switch: when the next session is within 7 days, dashboard header/weather context switches to the upcoming GP.
 
 ## Contributing
 
