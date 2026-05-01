@@ -255,9 +255,11 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	const durationMs = useReplayStore((state) => state.durationMs);
 	const currentRecordingId = useReplayStore((state) => state.recordingId);
 	const sessionInfo = useDataStore((state) => state.state?.SessionInfo);
+	const sessionPart = useDataStore((state) => state.state?.TimingData?.SessionPart);
 	const clockUtc = useDataStore((state) => state.state?.ExtrapolatedClock?.Utc);
 
 	type ReplayRecording = { id: string; label: string };
+	type ReplayRecordingResponse = string | ReplayRecording;
 	const pendingReplayKey = "f1dash-pending-replay-id-v1";
 
 	const [loadId, setLoadId] = useState("");
@@ -273,11 +275,12 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 
 	const buildRecordingName = useCallback(() => {
 		const meeting = sessionInfo?.Meeting?.Name?.trim() || "UnknownRace";
-		const session = sessionInfo?.Name?.trim() || "UnknownSession";
+		const baseSession = sessionInfo?.Name?.trim() || "UnknownSession";
+		const session = baseSession === "Sprint Qualifying" && sessionPart ? `${baseSession} SQ${sessionPart}` : baseSession === "Qualifying" && sessionPart ? `${baseSession} Q${sessionPart}` : baseSession;
 		const stamp = new Date().toISOString().replaceAll(":", "").replaceAll("-", "").replace("T", "-").slice(0, 15);
 		const sanitize = (value: string) => value.replace(/[<>:"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, " ").trim();
 		return `${sanitize(meeting)} + ${sanitize(session)} + ${stamp}`;
-	}, [sessionInfo]);
+	}, [sessionInfo, sessionPart]);
 
 	const refreshArchiveStatus = useCallback(async () => {
 		const status = (await controls.status()) as { recording?: boolean; storagePath?: string; recordingId?: string | null; autoRecordOnData?: boolean } | null;
@@ -288,9 +291,12 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	}, [controls]);
 
 	const loadRecordings = useCallback(async () => {
-		const res = (await controls.listRecordings()) as { recordings?: string[] } | null;
+		const res = (await controls.listRecordings()) as { recordings?: ReplayRecordingResponse[] } | null;
 		const raw = res?.recordings ?? [];
-		const next = raw.map((id) => ({ id, label: id })).sort((a, b) => a.id.localeCompare(b.id)).reverse();
+		const next = raw
+			.map((recording) => (typeof recording === "string" ? { id: recording, label: recording } : recording))
+			.sort((a, b) => a.id.localeCompare(b.id))
+			.reverse();
 		setRecordings(next);
 	}, [controls]);
 

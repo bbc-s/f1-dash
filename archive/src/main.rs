@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::{
     fs::{self as tokio_fs, OpenOptions},
-    io::AsyncWriteExt,
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
     sync::Mutex,
 };
@@ -59,6 +59,7 @@ struct RecordingRuntime {
     auto_on_data: bool,
     race_name: Option<String>,
     session_name: Option<String>,
+    session_part: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -160,6 +161,7 @@ async fn main() -> Result<(), Error> {
             auto_on_data: env::var("ARCHIVE_AUTO_RECORD").unwrap_or_else(|_| "false".to_string()).to_lowercase() == "true",
             race_name: None,
             session_name: None,
+            session_part: None,
         },
         replay: ReplayRuntime {
             recording_id: None,
@@ -374,14 +376,22 @@ fn sanitize_name(value: &str) -> String {
         .join(" ")
 }
 
-fn default_recording_name(race_name: Option<&str>, session_name: Option<&str>) -> String {
+fn session_name_with_part(session_name: &str, session_part: Option<u64>) -> String {
+    match (session_name, session_part) {
+        ("Sprint Qualifying", Some(part)) => format!("Sprint Qualifying SQ{}", part),
+        ("Qualifying", Some(part)) => format!("Qualifying Q{}", part),
+        _ => session_name.to_string(),
+    }
+}
+
+fn default_recording_name(race_name: Option<&str>, session_name: Option<&str>, session_part: Option<u64>) -> String {
     let race = sanitize_name(race_name.unwrap_or("Unknown Race"));
-    let session = sanitize_name(session_name.unwrap_or("Unknown Session"));
+    let session = sanitize_name(&session_name_with_part(session_name.unwrap_or("Unknown Session"), session_part));
     let stamp = Utc::now().format("%Y%m%d-%H%M%S");
     format!("{} + {} + {}", race, session, stamp)
 }
 
-fn extract_race_session(payload: &Value) -> (Option<String>, Option<String>) {
+fn extract_race_session(payload: &Value) -> (Option<String>, Option<String>, Option<u64>) {
     let race = payload
         .get("SessionInfo")
         .and_then(|info| info.get("Meeting"))
@@ -395,7 +405,12 @@ fn extract_race_session(payload: &Value) -> (Option<String>, Option<String>) {
         .and_then(Value::as_str)
         .map(|value| value.to_string());
 
-    (race, session)
+    let session_part = payload
+        .get("TimingData")
+        .and_then(|timing| timing.get("SessionPart"))
+        .and_then(Value::as_u64);
+
+    (race, session, session_part)
 }
 
 async fn start_recording_internal(
@@ -412,6 +427,7 @@ async fn start_recording_internal(
         let generated = default_recording_name(
             state.recording.race_name.as_deref(),
             state.recording.session_name.as_deref(),
+            state.recording.session_part,
         );
 
         (
@@ -487,7 +503,7 @@ async fn run_ingest_loop(runtime: Arc<Mutex<AppRuntime>>) -> Result<(), Error> {
                         }
                     };
 
-                    let (race_name, session_name) = extract_race_session(&payload);
+                    let (race_name, session_name, session_part) = extract_race_session(&payload);
                     {
                         let mut state = runtime.lock().await;
                         if let Some(race) = race_name {
@@ -495,6 +511,9 @@ async fn run_ingest_loop(runtime: Arc<Mutex<AppRuntime>>) -> Result<(), Error> {
                         }
                         if let Some(session) = session_name {
                             state.recording.session_name = Some(session);
+                        }
+                        if session_part.is_some() {
+                            state.recording.session_part = session_part;
                         }
                     }
 
@@ -563,6 +582,37 @@ async fn archive_status(State(ctx): State<AppContext>) -> impl IntoResponse {
     )
 }
 
+async fn infer_recording_label(recording_dir: PathBuf, fallback_id: &str) -> String {
+    let mut parts = fallback_id.split(" + ").collect::<Vec<_>>();
+    let fallback_stamp = parts.pop().unwrap_or_default().to_string();
+    let mut fallback_label: Option<String> = None;
+
+    let path = recording_dir.join("events.ndjson");
+    let Ok(file) = tokio_fs::File::open(path).await else {
+        return fallback_id.to_string();
+    };
+
+    let mut lines = BufReader::new(file).lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        let Ok(event) = serde_json::from_str::<RecordedEvent>(&line) else {
+            continue;
+        };
+        let (race, session, session_part) = extract_race_session(&event.payload);
+        let Some(session_name) = session else {
+            continue;
+        };
+        let race_name = race.unwrap_or_else(|| parts.first().copied().unwrap_or("Unknown Race").to_string());
+        let display_session = session_name_with_part(&session_name, session_part);
+        let label = format!("{} + {} + {}", sanitize_name(&race_name), sanitize_name(&display_session), fallback_stamp);
+        if session_part.is_some() || !matches!(session_name.as_str(), "Sprint Qualifying" | "Qualifying") {
+            return label;
+        }
+        fallback_label = Some(label);
+    }
+
+    fallback_label.unwrap_or_else(|| fallback_id.to_string())
+}
+
 async fn list_recordings(State(ctx): State<AppContext>) -> impl IntoResponse {
     let storage_path = {
         let state = ctx.runtime.lock().await;
@@ -574,12 +624,19 @@ async fn list_recordings(State(ctx): State<AppContext>) -> impl IntoResponse {
         while let Ok(Some(entry)) = dir.next_entry().await {
             if let Ok(file_type) = entry.file_type().await {
                 if file_type.is_dir() {
-                    recordings.push(entry.file_name().to_string_lossy().to_string());
+                    let id = entry.file_name().to_string_lossy().to_string();
+                    let label = infer_recording_label(entry.path(), &id).await;
+                    recordings.push(json!({ "id": id, "label": label }));
                 }
             }
         }
     }
-    recordings.sort_unstable();
+    recordings.sort_by(|a, b| {
+        a.get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .cmp(b.get("id").and_then(Value::as_str).unwrap_or_default())
+    });
 
     (StatusCode::OK, axum::Json(json!({ "recordings": recordings })))
 }

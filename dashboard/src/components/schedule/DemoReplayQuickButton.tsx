@@ -15,8 +15,8 @@ export default function DemoReplayQuickButton() {
 			try {
 				const response = await fetch("/api/archive-proxy/archive/recordings", { cache: "no-store" });
 				if (!response.ok) return;
-				const payload = (await response.json()) as { recordings?: string[] };
-				const recordings = payload.recordings ?? [];
+				const payload = (await response.json()) as { recordings?: (string | { id: string; label: string })[] };
+				const recordings = (payload.recordings ?? []).map((recording) => (typeof recording === "string" ? recording : recording.id));
 				const demo = recordings.filter((id) => id.startsWith("Demo Replay + Snapshot + ")).sort().pop() ?? null;
 				setDemoId(demo);
 			} catch {
