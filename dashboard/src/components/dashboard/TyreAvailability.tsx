@@ -57,6 +57,7 @@ function setKey(compound: Compound, newFlag: string | undefined, index: number) 
 
 export default function TyreAvailability() {
 	const drivers = useDataStore((state) => state.state?.DriverList);
+	const timingLines = useDataStore((state) => state.state?.TimingData?.Lines);
 	const timingAppData = useDataStore((state) => state.state?.TimingAppData?.Lines);
 	const sessionName = useDataStore((state) => state.state?.SessionInfo?.Name ?? "");
 	const sessionPath = useDataStore((state) => state.state?.SessionInfo?.Path ?? "");
@@ -67,6 +68,7 @@ export default function TyreAvailability() {
 		if (!drivers) return [];
 
 		return Object.values(drivers)
+			.filter((driver) => driver?.RacingNumber && (!timingLines || Boolean(timingLines[driver.RacingNumber])))
 			.sort((a, b) => a.Line - b.Line)
 			.map((driver) => {
 				const appData = timingAppData?.[driver.RacingNumber];
@@ -109,7 +111,7 @@ export default function TyreAvailability() {
 					remaining,
 				};
 			});
-	}, [drivers, timingAppData, allocation.HARD, allocation.MEDIUM, allocation.SOFT]);
+	}, [drivers, timingLines, timingAppData, allocation.HARD, allocation.MEDIUM, allocation.SOFT]);
 
 	if (!rows.length) {
 		return (

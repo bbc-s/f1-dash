@@ -91,14 +91,14 @@ export default function Driver({ driver, timingDriver, position, template, colum
 
 	return (
 		<div
-			className={clsx("flex flex-col gap-1 rounded-lg p-1.5 select-none", {
+			className={clsx("flex min-h-[46px] flex-col justify-center rounded-lg px-1.5 py-1 select-none", {
 				"opacity-50": timingDriver.KnockedOut || timingDriver.Retired || timingDriver.Stopped,
 				"bg-sky-800/30": favoriteDriver,
 				"bg-violet-800/30": hasFastest,
 				"bg-red-800/30": sessionPart != undefined && inDangerZone(position, sessionPart),
 			})}
 		>
-			<div className="grid items-center gap-2" style={{ gridTemplateColumns: template }}>
+			<div className="grid h-10 items-center gap-2 overflow-hidden" style={{ gridTemplateColumns: template }}>
 				{columns.map((column) => {
 					switch (column.id) {
 						case "position":
@@ -127,28 +127,28 @@ export default function Driver({ driver, timingDriver, position, template, colum
 							return <DriverMiniSectors key={column.id} sectors={timingDriver.Sectors} bestSectors={timingStatsDriver?.BestSectors} />;
 						case "speed":
 							return (
-								<p key={column.id} className="font-mono" title={carData ? "Live CarData speed" : "TimingData speed trap fallback"}>
+								<p key={column.id} className="truncate font-mono leading-none" title={carData ? "Live CarData speed" : "TimingData speed trap fallback"}>
 									{carData ? `${carData["2"] ?? "-"} km/h` : getSpeedTrap(timingDriver)}
 								</p>
 							);
 						case "gear":
-							return <p key={column.id} className="font-mono text-xl">{carData ? (carData["3"] ?? "-") : "-"}</p>;
+							return <p key={column.id} className="truncate font-mono text-xl leading-none">{carData ? (carData["3"] ?? "-") : "-"}</p>;
 						case "throttle":
-							return <p key={column.id} className="font-mono">{carData ? `${carData["4"] ?? "-"}%` : "-"}</p>;
+							return <p key={column.id} className="truncate font-mono leading-none">{carData ? `${carData["4"] ?? "-"}%` : "-"}</p>;
 						case "brake":
-							return <p key={column.id} className="font-mono">{carData ? (carData["5"] === 1 ? "ON" : "OFF") : "-"}</p>;
+							return <p key={column.id} className="truncate font-mono leading-none">{carData ? (carData["5"] === 1 ? "ON" : "OFF") : "-"}</p>;
 						case "rpm":
-							return <p key={column.id} className="font-mono">{carData ? `${carData["0"] ?? "-"} rpm` : "-"}</p>;
+							return <p key={column.id} className="truncate font-mono leading-none">{carData ? `${carData["0"] ?? "-"} rpm` : "-"}</p>;
 						case "battery-deploy":
-							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.battery}</p>;
+							return <p key={column.id} className="truncate font-mono text-[11px] leading-none" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.battery}</p>;
 						case "overtake-mode":
-							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.overtake}</p>;
+							return <p key={column.id} className="truncate font-mono text-[11px] leading-none" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.overtake}</p>;
 						case "straight-mode":
-							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.straight}</p>;
+							return <p key={column.id} className="truncate font-mono text-[11px] leading-none" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.straight}</p>;
 						case "boost":
-							return <p key={column.id} className="font-mono text-[11px]" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.boost}</p>;
+							return <p key={column.id} className="truncate font-mono text-[11px] leading-none" title="Raw telemetry channel (unknown semantic mapping)">{experimentalRaw.boost}</p>;
 						case "extra":
-							return <p key={column.id} className="truncate font-mono text-[11px] text-zinc-300">{carData ? renderExtraChannels(carData) : "-"}</p>;
+							return <p key={column.id} className="truncate font-mono text-[11px] leading-none text-zinc-300">{carData ? renderExtraChannels(carData) : "-"}</p>;
 					}
 				})}
 			</div>

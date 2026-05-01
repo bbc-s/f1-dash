@@ -43,6 +43,7 @@ export default function WidgetFrame({
 	const sizeStartRef = useRef<{ width: number; height: number } | null>(null);
 	const draggingRef = useRef(false);
 	const zIndex = useMemo(() => Math.max(1, order.indexOf(id) + 1), [order, id]);
+	const hoverZIndex = zIndex + 1000;
 
 	useEffect(() => {
 		const node = rootRef.current;
@@ -112,7 +113,7 @@ export default function WidgetFrame({
 				top: fixedAtOrigin ? undefined : `${config.y}px`,
 				width: fixedAtOrigin ? "100%" : undefined,
 				height: fixedAtOrigin ? "100%" : undefined,
-				zIndex,
+				zIndex: overlayChrome ? hoverZIndex : zIndex,
 			}}
 		>
 			{showChrome && (
