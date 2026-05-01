@@ -55,7 +55,7 @@ export default function DashboardLayout({ children }: Props) {
 		Date.parse(raceWeekOverride?.nextSessionStartUtc ?? "") > nowMs;
 	const allowLiveData = mode === "live" && (!spoilerGuardEnabled || liveConfirmed);
 
-	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: allowLiveData });
+	const { handleInitial, handleUpdate } = useDataEngine({ ...stores, enabled: allowLiveData });
 	const replayConnected = useReplayStore((state) => state.connected);
 
 	const { connected: liveConnected } = useLiveSyncSocket({
@@ -68,10 +68,7 @@ export default function DashboardLayout({ children }: Props) {
 	useWidgetLayoutSync();
 
 	const connected = mode === "live" ? liveConnected : replayConnected;
-	const delay = useSettingsStore((state) => state.delay);
-	const syncing = mode === "live" && delay > maxDelay;
 	useWakeLock();
-	const ended = useDataStore(({ state }) => state?.SessionStatus?.Status === "Ends");
 
 	useEffect(() => {
 		const interval = window.setInterval(() => setNowMs(Date.now()), 30_000);
@@ -126,10 +123,10 @@ export default function DashboardLayout({ children }: Props) {
 			<Sidebar key="sidebar" connected={connected} />
 
 			<motion.div layout="size" className="flex h-full w-full flex-1 flex-col md:gap-1">
-				<DesktopStaticBar show={!syncing || ended} replayControls={replayControls} />
-				<MobileStaticBar show={!syncing || ended} connected={connected} replayControls={replayControls} />
+				<DesktopStaticBar show replayControls={replayControls} />
+				<MobileStaticBar show connected={connected} replayControls={replayControls} />
 
-				<div className={!syncing || ended ? "no-scrollbar w-full flex-1 overflow-auto md:rounded-lg" : "hidden"}>
+				<div className="no-scrollbar w-full flex-1 overflow-auto md:rounded-lg">
 					<MobileDynamicBar />
 					{spoilerGuardEnabled && !liveConfirmed ? (
 						<div className="flex h-full min-h-[70vh] flex-col items-center justify-center gap-3 border-zinc-800 md:rounded-lg md:border">
@@ -148,11 +145,6 @@ export default function DashboardLayout({ children }: Props) {
 					)}
 				</div>
 
-				<div className={syncing && !ended ? "flex h-full flex-1 flex-col items-center justify-center gap-2 border-zinc-800 md:rounded-lg md:border" : "hidden"}>
-					<h1 className="my-20 text-center text-5xl font-bold">Syncing...</h1>
-					<p>Please wait for {delay - maxDelay} seconds.</p>
-					<p>Or make your delay smaller.</p>
-				</div>
 			</motion.div>
 		</div>
 	);
