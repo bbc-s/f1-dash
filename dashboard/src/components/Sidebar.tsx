@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
-import Link from "next/link";
 import clsx from "clsx";
 
 import { useSidebarStore } from "@/stores/useSidebarStore";
@@ -118,8 +117,8 @@ type ItemProps = { target?: string; item: { href: string; name: string } };
 const Item = ({ target, item }: ItemProps) => {
 	const active = usePathname() === item.href;
 	return (
-		<Link href={item.href} target={target}>
+		<a href={item.href} target={target}>
 			<div className={clsx("rounded-lg p-1 px-2 hover:bg-zinc-900", { "bg-zinc-800!": active })}>{item.name}</div>
-		</Link>
+		</a>
 	);
 };

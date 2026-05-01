@@ -5,6 +5,7 @@ import "@/styles/globals.css";
 
 import { env } from "@/env";
 import EnvScript from "@/env-script";
+import ChunkRecovery from "@/components/ChunkRecovery";
 import OledModeProvider from "@/components/OledModeProvider";
 
 import { GeistMono } from "geist/font/mono";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: Props) {
 			</head>
 
 			<body>
+				<ChunkRecovery />
 				<OledModeProvider>{children}</OledModeProvider>
 			</body>
 		</html>
