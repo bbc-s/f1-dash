@@ -358,27 +358,45 @@ const CarDot = ({ pos, name, color, favoriteDriver, pit, hidden, rotation, cente
 	const rotatedPos = rotate(pos.X, pos.Y, rotation, centerX, centerY);
 	const [renderedPos, setRenderedPos] = useState(rotatedPos);
 	const renderedRef = useRef(rotatedPos);
-	const targetRef = useRef(rotatedPos);
+	const animationRef = useRef({
+		from: rotatedPos,
+		to: rotatedPos,
+		start: 0,
+		duration: 1000,
+	});
+	const lastTargetUpdateRef = useRef<number | null>(null);
 	const frameRef = useRef<number | null>(null);
 
 	useEffect(() => {
-		targetRef.current = rotatedPos;
-		if (frameRef.current !== null) return;
+		const now = performance.now();
+		const lastUpdate = lastTargetUpdateRef.current;
+		const updateInterval = lastUpdate === null ? 1000 : now - lastUpdate;
+		lastTargetUpdateRef.current = now;
+
+		animationRef.current = {
+			from: renderedRef.current,
+			to: rotatedPos,
+			start: now,
+			duration: Math.min(Math.max(updateInterval * 1.15, 650), 1400),
+		};
+
+		if (frameRef.current !== null) {
+			window.cancelAnimationFrame(frameRef.current);
+			frameRef.current = null;
+		}
 
 		const tick = () => {
-			const current = renderedRef.current;
-			const target = targetRef.current;
+			const animation = animationRef.current;
+			const progress = Math.min((performance.now() - animation.start) / animation.duration, 1);
 			const next = {
-				x: current.x + (target.x - current.x) * 0.18,
-				y: current.y + (target.y - current.y) * 0.18,
+				x: animation.from.x + (animation.to.x - animation.from.x) * progress,
+				y: animation.from.y + (animation.to.y - animation.from.y) * progress,
 			};
-			const close = Math.abs(next.x - target.x) < 1 && Math.abs(next.y - target.y) < 1;
-			const finalPos = close ? target : next;
 
-			renderedRef.current = finalPos;
-			setRenderedPos(finalPos);
+			renderedRef.current = next;
+			setRenderedPos(next);
 
-			if (close) {
+			if (progress >= 1) {
 				frameRef.current = null;
 				return;
 			}
