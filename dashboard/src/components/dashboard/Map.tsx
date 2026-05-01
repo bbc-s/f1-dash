@@ -211,9 +211,9 @@ export default function Map({ filter }: Props) {
 			(async () => {
 				if (!circuitKey) return;
 				setMapLoadFailed(false);
-				const mapJson = await fetchMap(circuitKey);
+				const mapJson = await fetchMap(circuitKey).catch(() => null);
 
-				if (!mapJson) {
+				if (!mapJson || !Array.isArray(mapJson.x) || !Array.isArray(mapJson.y) || mapJson.x.length === 0 || mapJson.x.length !== mapJson.y.length) {
 					setMapLoadFailed(true);
 					return;
 				}

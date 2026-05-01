@@ -1,4 +1,3 @@
-import { AnimatePresence, LayoutGroup } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
@@ -47,28 +46,26 @@ export default function LeaderBoard() {
 				</div>
 			)}
 
-			<LayoutGroup key="drivers">
-				{drivers && driversTiming && (
-					<AnimatePresence>
-						{Object.values(driversTiming.Lines)
-							.sort(sortPos)
-							.map((timingDriver, index) => {
-								const driver = drivers[timingDriver.RacingNumber];
-								if (!driver) return null;
-								return (
-									<Driver
-										key={`leaderBoard.driver.${timingDriver.RacingNumber}`}
-										position={index + 1}
-										driver={driver}
-										timingDriver={timingDriver}
-										template={template}
-										columns={visibleColumns}
-									/>
-								);
-							})}
-					</AnimatePresence>
-				)}
-			</LayoutGroup>
+			{drivers && driversTiming && (
+				<>
+					{Object.values(driversTiming.Lines)
+						.sort(sortPos)
+						.map((timingDriver, index) => {
+							const driver = drivers[timingDriver.RacingNumber];
+							if (!driver) return null;
+							return (
+								<Driver
+									key={`leaderBoard.driver.${timingDriver.RacingNumber}`}
+									position={index + 1}
+									driver={driver}
+									timingDriver={timingDriver}
+									template={template}
+									columns={visibleColumns}
+								/>
+							);
+						})}
+				</>
+			)}
 		</div>
 	);
 }

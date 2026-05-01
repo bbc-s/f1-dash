@@ -50,8 +50,6 @@ type SettingsStore = {
 	setNoSpoiler: (noSpoiler: boolean) => void;
 	widgetHeadersOnHover: boolean;
 	setWidgetHeadersOnHover: (widgetHeadersOnHover: boolean) => void;
-	telemetryTransparent: boolean;
-	setTelemetryTransparent: (telemetryTransparent: boolean) => void;
 
 	leaderboardColumns: LeaderboardColumn[];
 	setLeaderboardColumns: (columns: LeaderboardColumn[]) => void;
@@ -116,8 +114,6 @@ export const useSettingsStore = create<SettingsStore>()(
 					setNoSpoiler: (noSpoiler: boolean) => set({ noSpoiler }),
 					widgetHeadersOnHover: false,
 					setWidgetHeadersOnHover: (widgetHeadersOnHover: boolean) => set({ widgetHeadersOnHover }),
-					telemetryTransparent: false,
-					setTelemetryTransparent: (telemetryTransparent: boolean) => set({ telemetryTransparent }),
 
 				leaderboardColumns: leaderboardColumnsDefault,
 				setLeaderboardColumns: (leaderboardColumns: LeaderboardColumn[]) =>

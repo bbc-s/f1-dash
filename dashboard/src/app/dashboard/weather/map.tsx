@@ -112,6 +112,7 @@ export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) 
 	}, [effectiveMeeting]);
 	const meetingName = useMemo(() => normalizeName(effectiveMeeting?.Name), [effectiveMeeting]);
 	const meetingCountry = useMemo(() => normalizeName(effectiveMeeting?.Country?.Name), [effectiveMeeting]);
+	const effectiveMeetingName = effectiveMeeting?.Name ?? "";
 	const meetingCoords = useMemo(() => {
 		if (!effectiveMeeting?.Name) return null;
 		return raceCoords[effectiveMeeting.Name] ?? raceCoords[effectiveMeeting.Name.replaceAll("SĂO", "SĂŁo")] ?? null;
@@ -123,6 +124,10 @@ export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) 
 			const options = await loadRaceOptions();
 			if (cancelled) return;
 				setRaces(options);
+				if (effectiveMeetingName && raceCoords[effectiveMeetingName]) {
+					setSelectedRace(effectiveMeetingName);
+					return;
+				}
 				if (options.length === 0) return;
 				const persisted = typeof window !== "undefined" ? localStorage.getItem(WEATHER_RACE_KEY) : null;
 
@@ -149,13 +154,20 @@ export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) 
 		return () => {
 			cancelled = true;
 		};
-	}, [currentRaceLabel, meetingName, meetingCountry]);
+	}, [currentRaceLabel, meetingName, meetingCountry, effectiveMeetingName]);
 
 	useEffect(() => {
 		let cancelled = false;
 		const resolve = async () => {
+			if (!selectedRace && meetingCoords) {
+				if (!cancelled) setCoords(meetingCoords);
+				return;
+			}
 			const race = races.find((item) => item.name === selectedRace);
-			if (!race) return;
+			if (!race) {
+				if (!cancelled && meetingCoords) setCoords(meetingCoords);
+				return;
+			}
 			const exact = raceCoords[race.name];
 			if (exact) {
 				if (!cancelled) setCoords(exact);
@@ -172,7 +184,7 @@ export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) 
 		return () => {
 			cancelled = true;
 		};
-	}, [selectedRace, races]);
+	}, [selectedRace, races, meetingCoords]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -280,6 +292,7 @@ export function WeatherMap({ showForecast = true }: { showForecast?: boolean }) 
 
 			<div className="relative min-h-[420px] flex-1">
 				<iframe
+					key={windyUrl}
 					title="Windy Radar"
 					src={windyUrl}
 					className="absolute inset-0 h-full w-full rounded-lg border border-zinc-800"

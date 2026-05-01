@@ -96,7 +96,7 @@ export default function WidgetFrame({
 	return (
 		<div
 			ref={rootRef}
-			className={`${fixedAtOrigin ? "relative" : "absolute"} group min-h-[220px] min-w-[280px] ${layoutLocked || fixedAtOrigin ? "resize-none" : "resize"} overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-xl`}
+			className={`${fixedAtOrigin ? "relative" : "absolute"} group min-h-[220px] min-w-[280px] ${layoutLocked || fixedAtOrigin ? "resize-none" : "resize"} ${overlayChrome ? "overflow-visible" : "overflow-hidden"} rounded-lg border border-zinc-800 bg-zinc-950 p-2 shadow-xl`}
 			onMouseDown={(event) => {
 				if (layoutLocked || fixedAtOrigin) return;
 				const node = rootRef.current;
@@ -119,7 +119,7 @@ export default function WidgetFrame({
 				<div
 					className={
 						overlayChrome
-							? "pointer-events-none absolute top-2 right-2 left-2 z-20 flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/95 px-2 py-2 opacity-0 transition-opacity delay-[1000ms] duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:delay-0"
+							? "pointer-events-none absolute -top-11 right-0 left-0 z-20 flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/95 px-2 py-2 opacity-0 shadow-xl transition-opacity delay-[1000ms] duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:delay-0"
 							: "mb-2 flex items-center justify-between border-b border-zinc-800 pb-2"
 					}
 				>
@@ -176,7 +176,7 @@ export default function WidgetFrame({
 				</div>
 			)}
 
-			<div className={showChrome && !overlayChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto"} style={zoomStyle}>
+			<div className={showChrome && !overlayChrome ? "h-[calc(100%-46px)] overflow-auto" : "h-full overflow-auto rounded-md"} style={zoomStyle}>
 				{children}
 			</div>
 		</div>

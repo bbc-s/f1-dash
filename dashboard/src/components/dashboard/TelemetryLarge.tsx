@@ -63,7 +63,6 @@ export default function TelemetryLarge() {
 	const pathname = usePathname();
 	const favoriteDrivers = useSettingsStore((state) => state.favoriteDrivers);
 	const speedUnit = useSettingsStore((state) => state.speedUnit);
-	const telemetryTransparent = useSettingsStore((state) => state.telemetryTransparent);
 	const drivers = useDataStore((state) => state.state?.DriverList);
 	const timing = useDataStore((state) => state.state?.TimingData?.Lines);
 	const cars = useDataStore((state) => state.carsData);
@@ -225,7 +224,6 @@ export default function TelemetryLarge() {
 								key={entry.nr}
 								entry={entry}
 								speedUnit={speedUnit}
-								transparent={telemetryTransparent}
 								onRemove={() => updateSelectedDrivers(selectedNumbers.filter((item) => item !== entry.nr))}
 							/>
 						))}
@@ -235,7 +233,7 @@ export default function TelemetryLarge() {
 	);
 }
 
-function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial"; transparent: boolean; onRemove: () => void }) {
+function TelemetryCard({ entry, speedUnit, onRemove }: { entry: TelemetryEntry; speedUnit: "metric" | "imperial"; onRemove: () => void }) {
 	const speedDisplay = speedUnit === "metric" ? entry.speedKmh : entry.speedMph;
 	const speedLabel = speedUnit === "metric" ? "KM/H" : "MPH";
 	const speedMax = speedUnit === "metric" ? 360 : 224;
@@ -244,9 +242,9 @@ function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: Tel
 	const tint = teamTint(entry.team);
 	return (
 		<div
-			className={`rounded-lg border border-zinc-800 p-2 ${transparent ? "bg-zinc-950/25 backdrop-blur-[1px]" : "bg-zinc-950"}`}
+			className="rounded-lg border border-zinc-800 bg-zinc-950 p-2"
 			style={{
-				backgroundImage: `radial-gradient(circle_at_25%_10%, ${tint}44, rgba(9,12,20,${transparent ? "0.35" : "0.98"}) 65%)`,
+				backgroundImage: `radial-gradient(circle_at_25%_10%, ${tint}44, rgba(9,12,20,0.98) 65%)`,
 			}}
 		>
 			<div className="mb-1 flex items-start justify-between">

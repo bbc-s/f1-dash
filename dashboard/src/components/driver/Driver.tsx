@@ -1,7 +1,6 @@
 "use client";
 
 import clsx from "clsx";
-import { motion } from "motion/react";
 
 import type { Driver, TimingDataDriver } from "@/types/state.type";
 import type { LeaderboardColumn } from "@/types/leaderboard.type";
@@ -91,8 +90,7 @@ export default function Driver({ driver, timingDriver, position, template, colum
 	const experimentalRaw = getExperimentalRaw(carData);
 
 	return (
-		<motion.div
-			layout="position"
+		<div
 			className={clsx("flex flex-col gap-1 rounded-lg p-1.5 select-none", {
 				"opacity-50": timingDriver.KnockedOut || timingDriver.Retired || timingDriver.Stopped,
 				"bg-sky-800/30": favoriteDriver,
@@ -154,6 +152,6 @@ export default function Driver({ driver, timingDriver, position, template, colum
 					}
 				})}
 			</div>
-		</motion.div>
+		</div>
 	);
 }

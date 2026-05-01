@@ -227,12 +227,8 @@ export default function HelpPage() {
 				In Settings you can enable <span className="text-zinc-300">Widget headers on hover</span>. In this mode headers are shown
 				as an overlay and do not change widget positions/sizes.
 			</p>
-			<p className="mb-4">
-				You can also enable <span className="text-zinc-300">Telemetry Large transparent mode</span> in Settings for overlay usage on
-				video feeds.
-			</p>
-			<p className="mb-4">
-				Telemetry popouts can be opened in multiple windows with different selected drivers. When you save a widget preset, open
+				<p className="mb-4">
+					Telemetry popouts can be opened in multiple windows with different selected drivers. When you save a widget preset, open
 				popout telemetry windows and their selected drivers are stored and restored.
 			</p>
 			<p className="mb-4">
