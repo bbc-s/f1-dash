@@ -28,7 +28,8 @@ export default function SessionInfo() {
 	const raceWeekOverride = useRaceWeekOverride();
 
 	const delay = useSettingsStore((state) => state.delay);
-	const overrideActive = mode === "live" && Boolean(raceWeekOverride?.active);
+	const hasLiveFeedSession = Boolean(clock || timingData || (session && session.Type !== "RaceWeekendOverride" && session.Key !== 0));
+	const overrideActive = mode === "live" && !hasLiveFeedSession && Boolean(raceWeekOverride?.active);
 	const overrideCountdown =
 		overrideActive && raceWeekOverride
 			? raceWeekOverride.nextSessionInLabel
