@@ -52,16 +52,20 @@ export default function LeaderBoard() {
 					<AnimatePresence>
 						{Object.values(driversTiming.Lines)
 							.sort(sortPos)
-							.map((timingDriver, index) => (
-								<Driver
-									key={`leaderBoard.driver.${timingDriver.RacingNumber}`}
-									position={index + 1}
-									driver={drivers[timingDriver.RacingNumber]}
-									timingDriver={timingDriver}
-									template={template}
-									columns={visibleColumns}
-								/>
-							))}
+							.map((timingDriver, index) => {
+								const driver = drivers[timingDriver.RacingNumber];
+								if (!driver) return null;
+								return (
+									<Driver
+										key={`leaderBoard.driver.${timingDriver.RacingNumber}`}
+										position={index + 1}
+										driver={driver}
+										timingDriver={timingDriver}
+										template={template}
+										columns={visibleColumns}
+									/>
+								);
+							})}
 					</AnimatePresence>
 				)}
 			</LayoutGroup>

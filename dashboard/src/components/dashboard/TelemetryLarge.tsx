@@ -49,7 +49,15 @@ type TelemetryEntry = {
 	boost: number;
 	aero: "ACTIVE" | "ARMED" | "OFF";
 	hasCarData: boolean;
+	speedSource: "CarData" | "TimingData" | "None";
 };
+
+function getTimingSpeedKmh(line: { Speeds?: unknown } | undefined): number {
+	const speeds = (line?.Speeds ?? {}) as Record<string, { Value?: string } | undefined>;
+	const value = speeds.ST?.Value ?? speeds.St?.Value ?? speeds.FL?.Value ?? speeds.Fl?.Value ?? speeds.I2?.Value ?? speeds.I1?.Value;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export default function TelemetryLarge() {
 	const pathname = usePathname();
@@ -147,7 +155,8 @@ export default function TelemetryLarge() {
 				.filter(([key]) => !new Set(["0", "2", "3", "4", "5", "45"]).has(key))
 				.sort((a, b) => Number(a[0]) - Number(b[0]))
 				.map(([, value]) => value);
-			const speedKmh = car?.["2"] ?? 0;
+			const timingSpeedKmh = getTimingSpeedKmh(line);
+			const speedKmh = car?.["2"] ?? timingSpeedKmh;
 			const drs = car?.["45"] ?? 0;
 			next.push({
 				nr,
@@ -168,6 +177,7 @@ export default function TelemetryLarge() {
 				boost: clamp(typeof unknown[3] === "number" ? unknown[3] : Math.round((speedKmh / 360) * 100)),
 				aero: drs > 9 ? "ACTIVE" : drs > 0 ? "ARMED" : "OFF",
 				hasCarData,
+				speedSource: car?.["2"] != null ? "CarData" : timingSpeedKmh > 0 ? "TimingData" : "None",
 			});
 		}
 		return next;
@@ -247,7 +257,7 @@ function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: Tel
 				<div className="flex flex-col items-end">
 					<p className="text-[10px] text-zinc-400">{entry.team} | P{entry.position} | {entry.gap || "-"}</p>
 					<div className="mt-0.5 flex gap-1">
-						{!entry.hasCarData && <div className="rounded border border-amber-500/50 px-1 py-0.5 text-[9px] font-semibold text-amber-300">NO CAR DATA</div>}
+						{!entry.hasCarData && <div className="rounded border border-amber-500/50 px-1 py-0.5 text-[9px] font-semibold text-amber-300">{entry.speedSource === "TimingData" ? "TIMING SPEED" : "NO CAR DATA"}</div>}
 						<div className="rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
 					</div>
 				</div>

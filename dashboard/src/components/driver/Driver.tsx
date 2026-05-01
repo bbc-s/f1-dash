@@ -77,7 +77,7 @@ function getSpeedTrap(timingDriver: TimingDataDriver) {
 	].find(([, value]) => value);
 	if (!speed) return "-";
 	const label = speed[0] === "St" ? "ST" : speed[0] === "Fl" ? "FL" : speed[0];
-	return `${speed[1]} ${label}`;
+	return `${speed[1]} km/h ${label}`;
 }
 
 export default function Driver({ driver, timingDriver, position, template, columns }: Props) {
