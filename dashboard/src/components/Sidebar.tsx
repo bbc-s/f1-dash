@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { useSidebarStore } from "@/stores/useSidebarStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useWidgetLayoutStore } from "@/stores/useWidgetLayoutStore";
+import { env } from "@/env";
 
 import ConnectionStatus from "@/components/ConnectionStatus";
 import DelayInput from "@/components/DelayInput";
@@ -104,7 +105,7 @@ export default function Sidebar({ connected }: Props) {
 					<div className="mt-auto p-2 pt-4 text-xs text-zinc-500">
 						Original dev: <a className="text-blue-500" href="https://slowly.dev" target="_blank">Slowly</a>
 						<div className="mt-2">Source: <a className="text-blue-500" href="https://github.com/bbc-s/f1-dash" target="_blank">GitHub</a></div>
-						<div>Version: {process.env.NEXT_PUBLIC_APP_VERSION ?? "4.0.17"}</div>
+						<div>Version: {env.NEXT_PUBLIC_APP_VERSION ?? process.env.version}</div>
 					</div>
 				</nav>
 			</motion.div>

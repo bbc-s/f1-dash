@@ -16,6 +16,7 @@ const client = z.object({
 	NEXT_PUBLIC_REPLAY_URL: z.string().includes("http").optional(),
 	NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST: z.string().optional(),
 	NEXT_PUBLIC_ARCHIVE_AUTO_RECORD: z.string().optional(),
+	NEXT_PUBLIC_APP_VERSION: z.string().optional(),
 });
 
 const processEnv = {
@@ -32,6 +33,7 @@ const processEnv = {
 	NEXT_PUBLIC_REPLAY_URL: process.env.NEXT_PUBLIC_REPLAY_URL,
 	NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST: process.env.NEXT_PUBLIC_ARCHIVE_STORAGE_PATH_HOST,
 	NEXT_PUBLIC_ARCHIVE_AUTO_RECORD: process.env.NEXT_PUBLIC_ARCHIVE_AUTO_RECORD,
+	NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
 };
 
 // Don't touch the part below
