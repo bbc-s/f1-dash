@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 
@@ -32,19 +32,6 @@ type Props = {
 	children: ReactNode;
 };
 
-function subscribeNow(callback: () => void) {
-	const interval = window.setInterval(callback, 30_000);
-	return () => window.clearInterval(interval);
-}
-
-function getNowSnapshot() {
-	return Date.now();
-}
-
-function getServerNowSnapshot() {
-	return 0;
-}
-
 export default function DashboardLayout({ children }: Props) {
 	const stores = useStores();
 	const pathname = usePathname();
@@ -55,7 +42,7 @@ export default function DashboardLayout({ children }: Props) {
 	const setCarsData = useDataStore((state) => state.setCarsData);
 	const setPositions = useDataStore((state) => state.setPositions);
 	const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
-	const nowMs = useSyncExternalStore(subscribeNow, getNowSnapshot, getServerNowSnapshot);
+	const [nowMs, setNowMs] = useState(() => Date.now());
 	const raceWeekAppliedRef = useRef<string>("");
 
 	const spoilerGuardEnabled = mode === "live" && noSpoiler && pathname !== "/dashboard/settings" && pathname !== "/dashboard/weather";
@@ -85,6 +72,11 @@ export default function DashboardLayout({ children }: Props) {
 	const syncing = mode === "live" && delay > maxDelay;
 	useWakeLock();
 	const ended = useDataStore(({ state }) => state?.SessionStatus?.Status === "Ends");
+
+	useEffect(() => {
+		const interval = window.setInterval(() => setNowMs(Date.now()), 30_000);
+		return () => window.clearInterval(interval);
+	}, []);
 
 	useEffect(() => {
 		if (!preSessionRaceWeek) {
