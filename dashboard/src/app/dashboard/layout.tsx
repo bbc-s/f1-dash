@@ -10,6 +10,7 @@ import { useStores } from "@/hooks/useStores";
 import { useLiveSyncSocket } from "@/hooks/useLiveSyncSocket";
 import { useWidgetLayoutSync } from "@/hooks/useWidgetLayoutSync";
 import { useReplaySync } from "@/hooks/useReplaySync";
+import { useRaceWeekOverride } from "@/hooks/useRaceWeekOverride";
 
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { useSidebarStore } from "@/stores/useSidebarStore";
@@ -36,12 +37,21 @@ export default function DashboardLayout({ children }: Props) {
 	const pathname = usePathname();
 	const mode = useReplayStore((state) => state.mode);
 	const noSpoiler = useSettingsStore((state) => state.noSpoiler);
+	const raceWeekOverride = useRaceWeekOverride();
+	const setState = useDataStore((state) => state.setState);
+	const setCarsData = useDataStore((state) => state.setCarsData);
+	const setPositions = useDataStore((state) => state.setPositions);
 	const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+	const raceWeekAppliedRef = useRef<string>("");
 
 	const spoilerGuardEnabled = mode === "live" && noSpoiler && pathname !== "/dashboard/settings" && pathname !== "/dashboard/weather";
 	const spoilerKey = `${pathname}|${noSpoiler ? "1" : "0"}`;
 	const liveConfirmed = confirmedKey === spoilerKey;
-	const allowLiveData = mode === "live" && (!spoilerGuardEnabled || liveConfirmed);
+	const preSessionRaceWeek =
+		Boolean(raceWeekOverride?.active) &&
+		Boolean(raceWeekOverride?.nextSessionStartUtc) &&
+		Date.parse(raceWeekOverride?.nextSessionStartUtc ?? "") > Date.now();
+	const allowLiveData = mode === "live" && !preSessionRaceWeek && (!spoilerGuardEnabled || liveConfirmed);
 
 	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: allowLiveData });
 	const replayConnected = useReplayStore((state) => state.connected);
@@ -60,6 +70,49 @@ export default function DashboardLayout({ children }: Props) {
 	const syncing = mode === "live" && delay > maxDelay;
 	useWakeLock();
 	const ended = useDataStore(({ state }) => state?.SessionStatus?.Status === "Ends");
+
+	useEffect(() => {
+		if (!preSessionRaceWeek) {
+			raceWeekAppliedRef.current = "";
+			return;
+		}
+		if (!preSessionRaceWeek || !raceWeekOverride?.active || !raceWeekOverride.meetingName) return;
+		const applyKey = `${raceWeekOverride.meetingName}|${raceWeekOverride.sessionName}|${raceWeekOverride.nextSessionStartUtc}`;
+		if (raceWeekAppliedRef.current === applyKey) return;
+		raceWeekAppliedRef.current = applyKey;
+		setCarsData(null);
+		setPositions(null);
+		setState(
+			{
+				SessionInfo: {
+					Meeting: {
+						Key: 0,
+						Name: raceWeekOverride.meetingName,
+						OfficialName: raceWeekOverride.meetingName,
+						Location: raceWeekOverride.countryName,
+						Country: {
+							Key: 0,
+							Code: raceWeekOverride.countryCode ?? "UNK",
+							Name: raceWeekOverride.countryName,
+						},
+						Circuit: {
+							Key: 0,
+							ShortName: raceWeekOverride.meetingName,
+						},
+					},
+					ArchiveStatus: { Status: "Generating" },
+					Key: 0,
+					Type: "RaceWeekendOverride",
+					Name: raceWeekOverride.sessionName,
+					StartDate: raceWeekOverride.nextSessionStartUtc,
+					EndDate: raceWeekOverride.nextSessionStartUtc,
+					GmtOffset: "+00:00",
+					Path: "",
+				},
+			},
+			{ replace: true },
+		);
+	}, [preSessionRaceWeek, raceWeekOverride, setCarsData, setPositions, setState]);
 
 	return (
 		<div className="flex h-screen w-full md:pt-1 md:pr-2 md:pb-2">
