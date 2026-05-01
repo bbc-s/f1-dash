@@ -2,6 +2,7 @@ use anyhow::Error;
 use cached::proc_macro::io_cached;
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::Duration;
 use tracing::error;
 
@@ -203,24 +204,163 @@ fn race_to_round(race: Race) -> Result<Round, Error> {
     })
 }
 
-#[io_cached(
-    map_error = r##"|e| anyhow::anyhow!(format!("disk cache error {:?}", e))"##,
-    disk = true,
-    time = 900
-)]
-async fn get_schedule(year: i32) -> Result<Vec<Round>, Error> {
-    let url = format!("{JOLPICA_BASE}/{year}.json?limit=100");
-    let data = reqwest::get(url).await?.json::<JolpicaResponse>().await?;
+fn normalize_name(value: &str) -> String {
+    value
+        .to_lowercase()
+        .replace("grand prix", "")
+        .replace("gp", "")
+        .replace(['-', '_'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
-    let mut rounds = Vec::new();
-    for race in data.mr_data.race_table.races {
-        if let Ok(round) = race_to_round(race) {
-            rounds.push(round);
+fn parse_offset_seconds(offset: &str) -> Option<i32> {
+    let trimmed = offset.trim();
+    if trimmed.is_empty() {
+        return Some(0);
+    }
+    let sign = if trimmed.starts_with('-') { -1 } else { 1 };
+    let raw = trimmed.trim_start_matches(['+', '-']);
+    let mut parts = raw.split(':');
+    let hours = parts.next()?.parse::<i32>().ok()?;
+    let mins = parts.next().unwrap_or("0").parse::<i32>().ok()?;
+    let secs = parts.next().unwrap_or("0").parse::<i32>().ok()?;
+    Some(sign * (hours * 3600 + mins * 60 + secs))
+}
+
+fn parse_f1_datetime(value: &str, gmt_offset: Option<&str>) -> Option<DateTime<Utc>> {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
+        return Some(dt.with_timezone(&Utc));
+    }
+
+    let parsed = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S")
+        .or_else(|_| NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S%.f"))
+        .ok()?;
+
+    let seconds = parse_offset_seconds(gmt_offset.unwrap_or("0"))? as i64;
+    Some(DateTime::from_naive_utc_and_offset(parsed - chrono::Duration::seconds(seconds), Utc))
+}
+
+async fn get_official_schedule(year: i32) -> Result<Vec<Round>, Error> {
+    let url = format!("https://livetiming.formula1.com/static/{year}/Index.json");
+    let data = reqwest::get(url).await?.json::<Value>().await?;
+    let meetings = data
+        .get("Meetings")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let mut rounds: Vec<Round> = Vec::new();
+
+    for meeting in meetings {
+        let name = meeting
+            .get("Name")
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown Grand Prix")
+            .to_string();
+        let country_name = meeting
+            .get("Country")
+            .and_then(|v| v.get("Name"))
+            .and_then(Value::as_str)
+            .unwrap_or("Unknown")
+            .to_string();
+
+        let sessions = meeting
+            .get("Sessions")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+
+        let mut round_sessions: Vec<Session> = Vec::new();
+
+        for session in sessions {
+            let kind = session
+                .get("Name")
+                .or_else(|| session.get("Type"))
+                .and_then(Value::as_str)
+                .unwrap_or("Session")
+                .to_string();
+            let start_raw = session.get("StartDate").and_then(Value::as_str);
+            let end_raw = session.get("EndDate").and_then(Value::as_str);
+            let gmt_offset = session.get("GmtOffset").and_then(Value::as_str);
+
+            let Some(start_raw) = start_raw else {
+                continue;
+            };
+            let Some(start) = parse_f1_datetime(start_raw, gmt_offset) else {
+                continue;
+            };
+            let end = end_raw
+                .and_then(|raw| parse_f1_datetime(raw, gmt_offset))
+                .unwrap_or_else(|| start + chrono::Duration::hours(1));
+
+            round_sessions.push(Session { kind, start, end });
         }
+
+        if round_sessions.is_empty() {
+            continue;
+        }
+
+        round_sessions.sort_unstable_by(|a, b| a.start.cmp(&b.start));
+        let start = round_sessions.first().map(|s| s.start).unwrap_or_else(Utc::now);
+        let end = round_sessions.last().map(|s| s.end).unwrap_or(start);
+
+        rounds.push(Round {
+            name,
+            country_name: country_name.clone(),
+            country_key: country_key(&country_name),
+            start,
+            end,
+            sessions: round_sessions,
+            over: end < Utc::now(),
+        });
     }
 
     rounds.sort_unstable_by(|a, b| a.start.cmp(&b.start));
     Ok(rounds)
+}
+
+fn merge_rounds(mut primary: Vec<Round>, fallback: Vec<Round>) -> Vec<Round> {
+    for fb in fallback {
+        let fb_name = normalize_name(&fb.name);
+        if let Some(existing) = primary
+            .iter_mut()
+            .find(|p| normalize_name(&p.name) == fb_name || (p.country_name == fb.country_name && (p.start - fb.start).num_days().abs() <= 7))
+        {
+            *existing = fb;
+        } else {
+            primary.push(fb);
+        }
+    }
+
+    primary.sort_unstable_by(|a, b| a.start.cmp(&b.start));
+    primary
+}
+
+#[io_cached(
+    map_error = r##"|e| anyhow::anyhow!(format!("disk cache error {:?}", e))"##,
+    disk = true,
+    time = 120
+)]
+async fn get_schedule(year: i32) -> Result<Vec<Round>, Error> {
+    let jolpica_url = format!("{JOLPICA_BASE}/{year}.json?limit=100");
+    let jolpica_data = reqwest::get(jolpica_url).await?.json::<JolpicaResponse>().await?;
+
+    let mut jolpica_rounds = Vec::new();
+    for race in jolpica_data.mr_data.race_table.races {
+        if let Ok(round) = race_to_round(race) {
+            jolpica_rounds.push(round);
+        }
+    }
+
+    match get_official_schedule(year).await {
+        Ok(official_rounds) if !official_rounds.is_empty() => Ok(merge_rounds(jolpica_rounds, official_rounds)),
+        _ => {
+            jolpica_rounds.sort_unstable_by(|a, b| a.start.cmp(&b.start));
+            Ok(jolpica_rounds)
+        }
+    }
 }
 
 pub async fn get() -> Result<axum::Json<Vec<Round>>, axum::http::StatusCode> {
