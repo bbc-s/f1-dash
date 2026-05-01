@@ -48,6 +48,7 @@ type TelemetryEntry = {
 	deploy: number;
 	boost: number;
 	aero: "ACTIVE" | "ARMED" | "OFF";
+	hasCarData: boolean;
 };
 
 export default function TelemetryLarge() {
@@ -81,30 +82,48 @@ export default function TelemetryLarge() {
 		sessionStorage.setItem("telemetry-popout-drivers-v1", JSON.stringify(popoutDrivers));
 	}, [isPopoutTelemetry, popoutDrivers]);
 
-	const sortedTiming = useMemo(() => {
-		if (!timing) return [];
-		return Object.values(timing).sort((a, b) => Number(a.Position) - Number(b.Position));
-	}, [timing]);
-
 	const availableDrivers = useMemo(() => {
-		if (!drivers || sortedTiming.length === 0) return [];
-		return sortedTiming.map((entry) => {
-			const driver = drivers[entry.RacingNumber];
-			return {
-				nr: entry.RacingNumber,
-				tla: driver?.Tla ?? entry.RacingNumber,
-				position: entry.Position,
-			};
+		if (!drivers) return [];
+		return Object.values(drivers)
+			.map((driver) => {
+				const line = timing?.[driver.RacingNumber];
+				return {
+					nr: driver.RacingNumber,
+					tla: driver.Tla ?? driver.RacingNumber,
+					position: line?.Position ?? "-",
+				};
+			})
+			.sort((a, b) => {
+				const aPos = Number(a.position);
+				const bPos = Number(b.position);
+				if (Number.isFinite(aPos) && Number.isFinite(bPos)) return aPos - bPos;
+				if (Number.isFinite(aPos)) return -1;
+				if (Number.isFinite(bPos)) return 1;
+				return a.tla.localeCompare(b.tla);
+			});
+	}, [drivers, timing]);
+
+	const driverList = useMemo(() => {
+		if (!drivers) return [];
+		return Object.values(drivers).sort((a, b) => {
+			const aLine = timing?.[a.RacingNumber];
+			const bLine = timing?.[b.RacingNumber];
+			const aPos = Number(aLine?.Position);
+			const bPos = Number(bLine?.Position);
+			if (Number.isFinite(aPos) && Number.isFinite(bPos)) return aPos - bPos;
+			if (Number.isFinite(aPos)) return -1;
+			if (Number.isFinite(bPos)) return 1;
+			return (a.Tla ?? a.RacingNumber).localeCompare(b.Tla ?? b.RacingNumber);
 		});
-	}, [drivers, sortedTiming]);
+	}, [drivers, timing]);
 
 	const selectedNumbers = useMemo(() => {
 		const currentDrivers = isPopoutTelemetry ? popoutDrivers : telemetryDrivers;
 		if (currentDrivers.length > 0) return currentDrivers;
-		if (sortedTiming.length === 0) return [];
-		const favorite = sortedTiming.find((entry) => favoriteDrivers.includes(entry.RacingNumber));
-		return [favorite?.RacingNumber ?? sortedTiming[0]?.RacingNumber].filter(Boolean) as string[];
-	}, [isPopoutTelemetry, popoutDrivers, telemetryDrivers, sortedTiming, favoriteDrivers]);
+		if (driverList.length === 0) return [];
+		const favorite = driverList.find((driver) => favoriteDrivers.includes(driver.RacingNumber));
+		return [favorite?.RacingNumber ?? driverList[0]?.RacingNumber].filter(Boolean) as string[];
+	}, [isPopoutTelemetry, popoutDrivers, telemetryDrivers, driverList, favoriteDrivers]);
 
 	const updateSelectedDrivers = (next: string[]) => {
 		const normalized = Array.from(new Set(next.map((value) => value.trim()).filter(Boolean)));
@@ -116,37 +135,39 @@ export default function TelemetryLarge() {
 	};
 
 	const entries = useMemo((): TelemetryEntry[] => {
-		if (!drivers || !timing || !cars) return [];
+		if (!drivers) return [];
 		const next: TelemetryEntry[] = [];
 		for (const nr of selectedNumbers) {
 			const driver = drivers[nr];
-			const line = timing[nr];
-			const car = cars[nr]?.Channels;
-			if (!driver || !line || !car) continue;
-			const unknown = Object.entries(car)
+			if (!driver) continue;
+			const line = timing?.[nr];
+			const car = cars?.[nr]?.Channels;
+			const hasCarData = Boolean(car);
+			const unknown = Object.entries(car ?? {})
 				.filter(([key]) => !new Set(["0", "2", "3", "4", "5", "45"]).has(key))
 				.sort((a, b) => Number(a[0]) - Number(b[0]))
 				.map(([, value]) => value);
-			const speedKmh = car["2"] ?? 0;
-			const drs = car["45"] ?? 0;
+			const speedKmh = car?.["2"] ?? 0;
+			const drs = car?.["45"] ?? 0;
 			next.push({
 				nr,
 				tla: driver.Tla,
 				team: driver.TeamName,
-				position: line.Position,
-				gap: line.GapToLeader || "-",
+				position: line?.Position ?? "-",
+				gap: line?.GapToLeader || "-",
 				speedKmh,
 				speedMph: kmhToMph(speedKmh),
-				throttle: clamp(car["4"] ?? 0),
-				brake: car["5"] === 1 ? 100 : 0,
-				rpmPct: clamp(Math.round(((car["0"] ?? 0) / 15000) * 100)),
-				rpmRaw: car["0"] ?? 0,
-				gear: car["3"] ?? 0,
-				battery: clamp(typeof unknown[0] === "number" ? unknown[0] : Math.round(((car["0"] ?? 0) / 15000) * 100)),
-				recharge: clamp(typeof unknown[1] === "number" ? unknown[1] : Math.max(0, 100 - (car["4"] ?? 0))),
-				deploy: clamp(typeof unknown[2] === "number" ? unknown[2] : Math.max(0, (car["4"] ?? 0) - 20)),
+				throttle: clamp(car?.["4"] ?? 0),
+				brake: car?.["5"] === 1 ? 100 : 0,
+				rpmPct: clamp(Math.round(((car?.["0"] ?? 0) / 15000) * 100)),
+				rpmRaw: car?.["0"] ?? 0,
+				gear: car?.["3"] ?? 0,
+				battery: clamp(typeof unknown[0] === "number" ? unknown[0] : Math.round(((car?.["0"] ?? 0) / 15000) * 100)),
+				recharge: clamp(typeof unknown[1] === "number" ? unknown[1] : Math.max(0, 100 - (car?.["4"] ?? 0))),
+				deploy: clamp(typeof unknown[2] === "number" ? unknown[2] : Math.max(0, (car?.["4"] ?? 0) - 20)),
 				boost: clamp(typeof unknown[3] === "number" ? unknown[3] : Math.round((speedKmh / 360) * 100)),
 				aero: drs > 9 ? "ACTIVE" : drs > 0 ? "ARMED" : "OFF",
+				hasCarData,
 			});
 		}
 		return next;
@@ -225,7 +246,10 @@ function TelemetryCard({ entry, speedUnit, transparent, onRemove }: { entry: Tel
 				</div>
 				<div className="flex flex-col items-end">
 					<p className="text-[10px] text-zinc-400">{entry.team} | P{entry.position} | {entry.gap || "-"}</p>
-					<div className="mt-0.5 rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
+					<div className="mt-0.5 flex gap-1">
+						{!entry.hasCarData && <div className="rounded border border-amber-500/50 px-1 py-0.5 text-[9px] font-semibold text-amber-300">NO CAR DATA</div>}
+						<div className="rounded border border-cyan-500/50 px-1 py-0.5 text-[9px] font-semibold text-cyan-300">AERO {entry.aero}</div>
+					</div>
 				</div>
 			</div>
 

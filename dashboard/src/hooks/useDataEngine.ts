@@ -59,7 +59,16 @@ export const useDataEngine = ({ enabled = true, updateState, updatePosition, upd
 
 	enabledRef.current = enabled;
 
-	const handleInitial = ({ CarDataZ: carZ, PositionZ: posZ, ...initial }: MessageInitial) => {
+	const handleInitial = ({
+		CarDataZ,
+		PositionZ,
+		"CarData.z": carDataDotZ,
+		"Position.z": positionDotZ,
+		...initial
+	}: MessageInitial) => {
+		const carZ = CarDataZ ?? carDataDotZ;
+		const posZ = PositionZ ?? positionDotZ;
+
 		updateState(initial);
 
 		Object.keys(buffers).forEach((key) => {
@@ -91,7 +100,16 @@ export const useDataEngine = ({ enabled = true, updateState, updatePosition, upd
 		}
 	};
 
-	const handleUpdate = ({ CarDataZ: carZ, PositionZ: posZ, ...update }: MessageUpdate) => {
+	const handleUpdate = ({
+		CarDataZ,
+		PositionZ,
+		"CarData.z": carDataDotZ,
+		"Position.z": positionDotZ,
+		...update
+	}: MessageUpdate) => {
+		const carZ = CarDataZ ?? carDataDotZ;
+		const posZ = PositionZ ?? positionDotZ;
+
 		Object.keys(buffers).forEach((key) => {
 			const data = update[key as keyof typeof update];
 			const buffer = buffers[key as keyof typeof buffers];

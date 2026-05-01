@@ -65,6 +65,7 @@ async fn handle_update(
     topic: String,
     update: Value,
 ) -> Result<(), Error> {
+    let topic = normalize_topic(&topic).to_string();
     let update = json!({ topic: update });
 
     match sender.send(update.to_string()) {
@@ -75,6 +76,14 @@ async fn handle_update(
     state_service.update_state(update).await?;
 
     Ok(())
+}
+
+fn normalize_topic(topic: &str) -> &str {
+    match topic {
+        "CarData.z" => "CarDataZ",
+        "Position.z" => "PositionZ",
+        _ => topic,
+    }
 }
 
 async fn handle_initial(state_service: &StateService, initial: Value) -> Result<(), Error> {

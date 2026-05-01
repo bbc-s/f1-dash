@@ -47,7 +47,7 @@ function renderExtraChannels(channels: Record<string, number>) {
 		.sort((a, b) => Number(a[0]) - Number(b[0]))
 		.slice(0, 6)
 		.map(([key, value]) => `${key}:${value}`);
-	if (pairs.length === 0) return "-";
+	if (pairs.length === 0) return "Not in feed";
 	return pairs.join(" | ");
 }
 
@@ -58,11 +58,26 @@ function getExperimentalRaw(channels: Record<string, number> | undefined) {
 		.filter(([key]) => !known.has(key))
 		.sort((a, b) => Number(a[0]) - Number(b[0]));
 	return {
-		battery: unknown[0] ? `${unknown[0][1]} (${unknown[0][0]})` : "-",
-		overtake: unknown[1] ? `${unknown[1][1]} (${unknown[1][0]})` : "-",
-		straight: unknown[2] ? `${unknown[2][1]} (${unknown[2][0]})` : "-",
-		boost: unknown[3] ? `${unknown[3][1]} (${unknown[3][0]})` : "-",
+		battery: unknown[0] ? `${unknown[0][1]} (${unknown[0][0]})` : "Not in feed",
+		overtake: unknown[1] ? `${unknown[1][1]} (${unknown[1][0]})` : "Not in feed",
+		straight: unknown[2] ? `${unknown[2][1]} (${unknown[2][0]})` : "Not in feed",
+		boost: unknown[3] ? `${unknown[3][1]} (${unknown[3][0]})` : "Not in feed",
 	};
+}
+
+function getSpeedTrap(timingDriver: TimingDataDriver) {
+	const speeds = timingDriver.Speeds as unknown as Record<string, { Value?: string } | undefined>;
+	const speed = [
+		["ST", speeds?.ST?.Value],
+		["St", speeds?.St?.Value],
+		["FL", speeds?.FL?.Value],
+		["Fl", speeds?.Fl?.Value],
+		["I2", speeds?.I2?.Value],
+		["I1", speeds?.I1?.Value],
+	].find(([, value]) => value);
+	if (!speed) return "-";
+	const label = speed[0] === "St" ? "ST" : speed[0] === "Fl" ? "FL" : speed[0];
+	return `${speed[1]} ${label}`;
 }
 
 export default function Driver({ driver, timingDriver, position, template, columns }: Props) {
@@ -113,11 +128,15 @@ export default function Driver({ driver, timingDriver, position, template, colum
 						case "sectors":
 							return <DriverMiniSectors key={column.id} sectors={timingDriver.Sectors} bestSectors={timingStatsDriver?.BestSectors} />;
 						case "speed":
-							return <p key={column.id} className="font-mono">{carData ? `${carData["2"]} km/h` : "-"}</p>;
+							return (
+								<p key={column.id} className="font-mono" title={carData ? "Live CarData speed" : "TimingData speed trap fallback"}>
+									{carData ? `${carData["2"] ?? "-"} km/h` : getSpeedTrap(timingDriver)}
+								</p>
+							);
 						case "gear":
-							return <p key={column.id} className="font-mono text-xl">{carData ? carData["3"] : "-"}</p>;
+							return <p key={column.id} className="font-mono text-xl">{carData ? (carData["3"] ?? "-") : "-"}</p>;
 						case "throttle":
-							return <p key={column.id} className="font-mono">{carData ? `${carData["4"]}%` : "-"}</p>;
+							return <p key={column.id} className="font-mono">{carData ? `${carData["4"] ?? "-"}%` : "-"}</p>;
 						case "brake":
 							return <p key={column.id} className="font-mono">{carData ? (carData["5"] === 1 ? "ON" : "OFF") : "-"}</p>;
 						case "rpm":

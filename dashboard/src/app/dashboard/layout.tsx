@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 
@@ -32,6 +32,19 @@ type Props = {
 	children: ReactNode;
 };
 
+function subscribeNow(callback: () => void) {
+	const interval = window.setInterval(callback, 30_000);
+	return () => window.clearInterval(interval);
+}
+
+function getNowSnapshot() {
+	return Date.now();
+}
+
+function getServerNowSnapshot() {
+	return 0;
+}
+
 export default function DashboardLayout({ children }: Props) {
 	const stores = useStores();
 	const pathname = usePathname();
@@ -42,15 +55,17 @@ export default function DashboardLayout({ children }: Props) {
 	const setCarsData = useDataStore((state) => state.setCarsData);
 	const setPositions = useDataStore((state) => state.setPositions);
 	const [confirmedKey, setConfirmedKey] = useState<string | null>(null);
+	const nowMs = useSyncExternalStore(subscribeNow, getNowSnapshot, getServerNowSnapshot);
 	const raceWeekAppliedRef = useRef<string>("");
 
 	const spoilerGuardEnabled = mode === "live" && noSpoiler && pathname !== "/dashboard/settings" && pathname !== "/dashboard/weather";
 	const spoilerKey = `${pathname}|${noSpoiler ? "1" : "0"}`;
 	const liveConfirmed = confirmedKey === spoilerKey;
 	const preSessionRaceWeek =
+		nowMs > 0 &&
 		Boolean(raceWeekOverride?.active) &&
 		Boolean(raceWeekOverride?.nextSessionStartUtc) &&
-		Date.parse(raceWeekOverride?.nextSessionStartUtc ?? "") > Date.now();
+		Date.parse(raceWeekOverride?.nextSessionStartUtc ?? "") > nowMs;
 	const allowLiveData = mode === "live" && (!spoilerGuardEnabled || liveConfirmed);
 
 	const { handleInitial, handleUpdate, maxDelay } = useDataEngine({ ...stores, enabled: allowLiveData });
