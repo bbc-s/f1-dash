@@ -25,12 +25,22 @@ import {
 const SPACE = 1000;
 const ROTATION_FIX = 90;
 
-// Function to calculate driver position based on their segment progress
-function getDriverPosition(
-	timingDriver: TimingDataDriver | undefined,
-	originalTrackPoints: { x: number; y: number }[] | null,
-): PositionCar | null {
-	if (!timingDriver || !originalTrackPoints || originalTrackPoints.length === 0) {
+function getPointAtProgress(trackPoints: { x: number; y: number }[], progress: number): { x: number; y: number } {
+	const normalized = ((progress % 1) + 1) % 1;
+	const scaled = normalized * (trackPoints.length - 1);
+	const index = Math.floor(scaled);
+	const nextIndex = (index + 1) % trackPoints.length;
+	const ratio = scaled - index;
+	const current = trackPoints[index] ?? trackPoints[0];
+	const next = trackPoints[nextIndex] ?? current;
+	return {
+		x: current.x + (next.x - current.x) * ratio,
+		y: current.y + (next.y - current.y) * ratio,
+	};
+}
+
+function getDriverTargetProgress(timingDriver: TimingDataDriver | undefined): number | null {
+	if (!timingDriver) {
 		return null;
 	}
 
@@ -38,13 +48,7 @@ function getDriverPosition(
 	const allSegments = timingDriver.Sectors.flatMap((sector) => sector.Segments);
 
 	if (allSegments.length === 0) {
-		// No segments available, position at start/finish line
-		return {
-			Status: "OnTrack",
-			X: originalTrackPoints[0].x,
-			Y: originalTrackPoints[0].y,
-			Z: 0,
-		};
+		return 0;
 	}
 
 	// Find the furthest segment with a meaningful status
@@ -83,12 +87,22 @@ function getDriverPosition(
 	const segmentSize = 1 / Math.max(allSegments.length, 1);
 	const adjustedRatio = baseRatio + segmentProgress * segmentSize;
 
-	const positionIndex = Math.floor(adjustedRatio * (originalTrackPoints.length - 1));
+	return Math.min(Math.max(adjustedRatio, 0), 1);
+}
 
-	// Ensure we don't go out of bounds
-	const safeIndex = Math.min(Math.max(positionIndex, 0), originalTrackPoints.length - 1);
-
-	const trackPoint = originalTrackPoints[safeIndex];
+// Function to calculate driver position based on their segment progress
+function getDriverPosition(
+	timingDriver: TimingDataDriver | undefined,
+	originalTrackPoints: { x: number; y: number }[] | null,
+): PositionCar | null {
+	if (!originalTrackPoints || originalTrackPoints.length === 0) {
+		return null;
+	}
+	const progress = getDriverTargetProgress(timingDriver);
+	if (progress == null) {
+		return null;
+	}
+	const trackPoint = getPointAtProgress(originalTrackPoints, progress);
 
 	return {
 		Status: "OnTrack",
@@ -129,6 +143,69 @@ export default function Map({ filter }: Props) {
 	const [finishLine, setFinishLine] = useState<null | { x: number; y: number; startAngle: number }>(null);
 	const [originalTrackPoints, setOriginalTrackPoints] = useState<null | { x: number; y: number }[]>(null);
 	const [mapLoadFailed, setMapLoadFailed] = useState(false);
+	const latestTimingRef = useRef<typeof timingDrivers>(null);
+	const fallbackProgressRef = useRef<Record<string, number>>({});
+	const [smoothFallbackPositions, setSmoothFallbackPositions] = useState<Record<string, PositionCar>>({});
+
+	useEffect(() => {
+		latestTimingRef.current = timingDrivers;
+	}, [timingDrivers]);
+
+	useEffect(() => {
+		fallbackProgressRef.current = {};
+	}, [circuitKey]);
+
+	useEffect(() => {
+		if (!originalTrackPoints || originalTrackPoints.length === 0) return;
+
+		let frame: number | null = null;
+		let last = performance.now();
+
+		const tick = () => {
+			const now = performance.now();
+			const dt = Math.min(Math.max(now - last, 0), 250);
+			last = now;
+			const timing = latestTimingRef.current;
+
+			if (timing?.Lines) {
+				const nextPositions: Record<string, PositionCar> = {};
+				const progressState = fallbackProgressRef.current;
+
+				Object.values(timing.Lines).forEach((line) => {
+					const target = getDriverTargetProgress(line);
+					if (target == null) return;
+
+					const previous = progressState[line.RacingNumber] ?? target;
+					let targetContinuous = target;
+					while (targetContinuous < previous - 0.5) targetContinuous += 1;
+					while (targetContinuous > previous + 0.5) targetContinuous -= 1;
+
+					const delta = targetContinuous - previous;
+					const correction = delta * Math.min(1, dt / 1400);
+					const freeRun = Math.abs(delta) < 0.002 && !line.InPit && !line.Stopped && !line.Retired ? dt / 90_000 : 0;
+					const display = previous + correction + freeRun;
+					progressState[line.RacingNumber] = display;
+
+					const point = getPointAtProgress(originalTrackPoints, display);
+					nextPositions[line.RacingNumber] = {
+						Status: "OnTrack",
+						X: point.x,
+						Y: point.y,
+						Z: 0,
+					};
+				});
+
+				setSmoothFallbackPositions(nextPositions);
+			}
+
+			frame = window.requestAnimationFrame(tick);
+		};
+
+		frame = window.requestAnimationFrame(tick);
+		return () => {
+			if (frame !== null) window.cancelAnimationFrame(frame);
+		};
+	}, [originalTrackPoints]);
 
 		useEffect(() => {
 			(async () => {
@@ -299,7 +376,10 @@ export default function Map({ filter }: Props) {
 								: false;
 							const pit = timingDriver ? timingDriver.InPit : false;
 
-							const driverPosition = positions?.[driver.RacingNumber] ?? getDriverPosition(timingDriver, originalTrackPoints);
+							const driverPosition =
+								positions?.[driver.RacingNumber] ??
+								smoothFallbackPositions[driver.RacingNumber] ??
+								getDriverPosition(timingDriver, originalTrackPoints);
 
 							// Skip rendering if we can't determine position
 							if (!driverPosition) return null;
