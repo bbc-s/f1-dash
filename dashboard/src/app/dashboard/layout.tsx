@@ -352,11 +352,11 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 	useEffect(() => {
 		if (mode !== "replay") return;
 		if (loadId) return;
-		const candidate = currentRecordingId ?? recordings[0]?.id ?? "";
+		const candidate = currentRecordingId ?? "";
 		if (!candidate) return;
 		setLoadId(candidate);
 		void controls.load(candidate);
-	}, [mode, loadId, currentRecordingId, recordings, controls]);
+	}, [mode, loadId, currentRecordingId, controls]);
 
 	const actionButton = "cursor-pointer rounded border border-zinc-500 bg-zinc-800 px-2 py-1 text-xs text-zinc-100 shadow-sm hover:border-cyan-500 hover:bg-zinc-700";
 	const iconButton = "cursor-pointer rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-sm text-zinc-100 hover:border-cyan-500 hover:bg-zinc-700";
@@ -387,6 +387,7 @@ function ReplayControls({ controls, compact = false }: { controls: ReturnType<ty
 							} catch { setReplayFeedback("Delete failed: request error"); }
 						}} type="button">Delete</button>
 						{replayFeedback && <span className="text-xs text-zinc-300">{replayFeedback}</span>}
+						{loadId && !playing && cursorMs === 0 && <span className="text-xs text-amber-300">Start replay to display data</span>}
 						<div className="flex items-center gap-1">
 							{playing ? <button className={iconButton} onClick={() => void controls.pause()} type="button" title="Pause">❚❚</button> : <button className={iconButton} onClick={() => void controls.play()} type="button" title="Play">▶</button>}
 							<button className={iconButton} onClick={() => void controls.pause()} type="button" title="Stop">■</button>

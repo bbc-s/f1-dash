@@ -28,4 +28,9 @@ export type StandingsResponse = {
 export type ScheduleRoundLite = {
 	name: string;
 	start: string;
+	sessions?: Array<{
+		kind: string;
+		start: string;
+		end: string;
+	}>;
 };

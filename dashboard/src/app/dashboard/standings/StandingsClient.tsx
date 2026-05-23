@@ -11,10 +11,20 @@ import type {
 
 const STORAGE_KEY = "standings-calculator-v5";
 const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;
+const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 
 type RaceOrderDraft = Record<string, string[]>;
+type SimulationEvent = {
+	id: string;
+	roundName: string;
+	sessionName: "Race" | "Sprint";
+	label: string;
+	points: readonly number[];
+};
 type AppliedSimulation = {
-	race: string;
+	eventId: string;
+	label: string;
+	sessionName: "Race" | "Sprint";
 	order: string[];
 } | null;
 
@@ -51,15 +61,42 @@ function formatDriverName(driver: DriverStanding) {
 	return `${driver.givenName} ${driver.familyName}`;
 }
 
+function buildSimulationEvents(rounds: ScheduleRoundLite[]): SimulationEvent[] {
+	return rounds.flatMap((round) => {
+		const sessions = round.sessions ?? [];
+		const hasSprint = sessions.some((session) => session.kind === "Sprint");
+		const events: SimulationEvent[] = [];
+		if (hasSprint) {
+			events.push({
+				id: `${round.name}::Sprint`,
+				roundName: round.name,
+				sessionName: "Sprint",
+				label: `${round.name} - Sprint`,
+				points: SPRINT_POINTS,
+			});
+		}
+		events.push({
+			id: `${round.name}::Race`,
+			roundName: round.name,
+			sessionName: "Race",
+			label: `${round.name} - Race`,
+			points: RACE_POINTS,
+		});
+		return events;
+	});
+}
+
 export default function StandingsClient({ data, rounds }: { data: StandingsResponse; rounds: ScheduleRoundLite[] }) {
 	const driversById = useMemo(() => Object.fromEntries(data.drivers.map((d) => [d.driverId, d])) as Record<string, DriverStanding>, [data.drivers]);
 	const defaultOrder = useMemo(() => buildDefaultOrder(data.drivers), [data.drivers]);
 	const currentRound = useMemo(() => Math.max(0, Number.parseInt(data.round, 10) || 0), [data.round]);
 	const remainingRaces = useMemo(() => rounds.slice(currentRound), [rounds, currentRound]);
-	const raceNames = useMemo(() => remainingRaces.map((r) => r.name).filter(Boolean), [remainingRaces]);
+	const simulationEvents = useMemo(() => buildSimulationEvents(remainingRaces), [remainingRaces]);
+	const eventIds = useMemo(() => simulationEvents.map((event) => event.id), [simulationEvents]);
+	const activeEventById = useMemo(() => Object.fromEntries(simulationEvents.map((event) => [event.id, event])) as Record<string, SimulationEvent>, [simulationEvents]);
 
 	const [draft, setDraft] = useState<RaceOrderDraft>(() => loadDraft());
-	const [selectedRace, setSelectedRace] = useState<string>(() => raceNames[0] ?? "");
+	const [selectedEventId, setSelectedEventId] = useState<string>(() => eventIds[0] ?? "");
 	const [draggingId, setDraggingId] = useState<string | null>(null);
 	const [appliedSimulation, setAppliedSimulation] = useState<AppliedSimulation>(null);
 
@@ -67,27 +104,29 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
 	}, [draft]);
 
-	const activeRace = useMemo(() => {
-		if (raceNames.length === 0) return selectedRace;
-		return raceNames.includes(selectedRace) ? selectedRace : (raceNames[0] ?? "");
-	}, [raceNames, selectedRace]);
+	const activeEventId = useMemo(() => {
+		if (eventIds.length === 0) return selectedEventId;
+		return eventIds.includes(selectedEventId) ? selectedEventId : (eventIds[0] ?? "");
+	}, [eventIds, selectedEventId]);
+	const activeEvent = activeEventId ? activeEventById[activeEventId] : undefined;
 
 	const selectedOrder = useMemo(() => {
-		if (!activeRace) return defaultOrder;
-		const stored = draft[activeRace];
+		if (!activeEventId) return defaultOrder;
+		const stored = draft[activeEventId];
 		if (!stored || stored.length === 0) return defaultOrder;
 		const filtered = stored.filter((id) => Boolean(driversById[id]));
 		for (const id of defaultOrder) {
 			if (!filtered.includes(id)) filtered.push(id);
 		}
 		return filtered;
-	}, [activeRace, draft, defaultOrder, driversById]);
+	}, [activeEventId, draft, defaultOrder, driversById]);
 
 	const appliedBonusByDriver = useMemo(() => {
 		if (!appliedSimulation) return {} as Record<string, number>;
+		const points = appliedSimulation.sessionName === "Sprint" ? SPRINT_POINTS : RACE_POINTS;
 		const bonus: Record<string, number> = {};
 		appliedSimulation.order.forEach((driverId, idx) => {
-			bonus[driverId] = RACE_POINTS[idx] ?? 0;
+			bonus[driverId] = points[idx] ?? 0;
 		});
 		return bonus;
 	}, [appliedSimulation]);
@@ -124,9 +163,9 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 	}, [data.constructors, constructorBonusById]);
 
 	const onDropToDriver = (targetId: string) => {
-		if (!activeRace || !draggingId) return;
+		if (!activeEventId || !draggingId) return;
 		const moved = moveItem(selectedOrder, draggingId, targetId);
-		setDraft((prev) => ({ ...prev, [activeRace]: moved }));
+		setDraft((prev) => ({ ...prev, [activeEventId]: moved }));
 		setDraggingId(null);
 	};
 
@@ -136,7 +175,7 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 				<p>
 					Official standings source: <span className="text-zinc-200">{data.source}</span> (season {data.season}, round {data.round})
 				</p>
-				<p>Drag drivers for one selected race, then confirm simulation with the button.</p>
+				<p>Drag drivers for one selected race or sprint, then confirm simulation with the button. Sprint points use the F1 sprint scale: 8-7-6-5-4-3-2-1.</p>
 			</div>
 
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_1fr]">
@@ -145,11 +184,11 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 						<label className="text-xs text-zinc-400">Race</label>
 						<select
 							className="w-full rounded border border-zinc-700 bg-zinc-950 p-1 text-xs"
-							value={activeRace}
-							onChange={(e) => setSelectedRace(e.target.value)}
+							value={activeEventId}
+							onChange={(e) => setSelectedEventId(e.target.value)}
 						>
-							{raceNames.map((name) => (
-								<option key={name} value={name}>{name}</option>
+							{simulationEvents.map((event) => (
+								<option key={event.id} value={event.id}>{event.label}</option>
 							))}
 						</select>
 					</div>
@@ -157,17 +196,17 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 						<div className="mb-2 flex items-center gap-2 overflow-x-auto pb-1 text-xs whitespace-nowrap text-zinc-300">
 						<button
 							className="rounded border border-cyan-500 bg-cyan-700/30 px-2 py-1 font-semibold text-cyan-100"
-							onClick={() => activeRace && setAppliedSimulation({ race: activeRace, order: selectedOrder })}
+							onClick={() => activeEvent && setAppliedSimulation({ eventId: activeEvent.id, label: activeEvent.label, sessionName: activeEvent.sessionName, order: selectedOrder })}
 							type="button"
 						>
-							Confirm race simulation
+							Confirm {activeEvent?.sessionName.toLowerCase() ?? "race"} simulation
 						</button>
 						<button
 							className="rounded border border-zinc-700 px-2 py-1"
-							onClick={() => activeRace && setDraft((prev) => ({ ...prev, [activeRace]: defaultOrder }))}
+							onClick={() => activeEventId && setDraft((prev) => ({ ...prev, [activeEventId]: defaultOrder }))}
 							type="button"
 						>
-							Reset race order
+							Reset order
 						</button>
 						<button
 							className="rounded border border-red-500 bg-red-700/20 px-2 py-1 text-red-100"
@@ -178,18 +217,18 @@ export default function StandingsClient({ data, rounds }: { data: StandingsRespo
 						</button>
 					</div>
 
-					{appliedSimulation?.race && (
-						<p className="mb-2 text-xs text-emerald-300">Applied race: {appliedSimulation.race}</p>
+					{appliedSimulation?.label && (
+						<p className="mb-2 text-xs text-emerald-300">Applied simulation: {appliedSimulation.label}</p>
 					)}
 
 					<div className="max-h-[70vh] space-y-1 overflow-auto rounded border border-zinc-800 p-2">
 						{selectedOrder.map((driverId, index) => {
 							const driver = driversById[driverId];
 							if (!driver) return null;
-							const racePts = RACE_POINTS[index] ?? 0;
+							const racePts = activeEvent?.points[index] ?? 0;
 							return (
 								<div
-									key={`${activeRace}.${driverId}`}
+									key={`${activeEventId}.${driverId}`}
 									draggable
 									onDragStart={() => setDraggingId(driverId)}
 									onDragOver={(event) => event.preventDefault()}

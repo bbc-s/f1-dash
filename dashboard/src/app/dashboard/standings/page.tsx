@@ -20,8 +20,8 @@ async function getSchedule(): Promise<ScheduleRoundLite[]> {
 			cache: "no-store",
 		});
 		if (!response.ok) return [];
-		const rounds = (await response.json()) as Array<{ name: string; start: string }>;
-		return rounds.map((round) => ({ name: round.name, start: round.start }));
+		const rounds = (await response.json()) as ScheduleRoundLite[];
+		return rounds.map((round) => ({ name: round.name, start: round.start, sessions: round.sessions ?? [] }));
 	} catch {
 		return [];
 	}

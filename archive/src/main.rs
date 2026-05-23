@@ -348,12 +348,14 @@ fn rebuild_to_cursor(replay: &mut ReplayRuntime) {
 fn tick_replay(replay: &mut ReplayRuntime) {
     let now = Utc::now().timestamp_millis();
 
-    if replay.playing {
-        let elapsed = now - replay.last_tick_ms;
-        let delta = (elapsed as f64 * replay.speed) as i64;
-        replay.cursor_ms = (replay.cursor_ms + delta).clamp(0, replay.duration_ms);
+    if !replay.playing {
+        replay.last_tick_ms = now;
+        return;
     }
 
+    let elapsed = now - replay.last_tick_ms;
+    let delta = (elapsed as f64 * replay.speed) as i64;
+    replay.cursor_ms = (replay.cursor_ms + delta).clamp(0, replay.duration_ms);
     replay.last_tick_ms = now;
 
     while replay.next_index < replay.events.len()
@@ -830,7 +832,6 @@ async fn load_replay(
     state.replay.state = Value::Object(Map::new());
     state.replay.cars_data = Value::Null;
     state.replay.positions = Value::Null;
-    rebuild_to_cursor(&mut state.replay);
 
     (
         StatusCode::OK,
